@@ -9,6 +9,17 @@ import { withOpenAIOptions, type OpenAIProviderOptionsInput } from "./openai-opt
 export const id = ProviderID.make("azure")
 const routeAuth = Auth.remove("authorization")
 
+const normalizeAzureBaseURL = (baseURL: string) => baseURL.replace(/\/openai\/v1\/?$/i, "/openai")
+
+const isFoundryBaseURL = (baseURL: string | undefined) => {
+  if (!baseURL) return false
+  try {
+    return new URL(baseURL).hostname.toLowerCase().endsWith(".services.ai.azure.com")
+  } catch {
+    return false
+  }
+}
+
 // Azure needs the customer's resource URL; supply either `resourceName`
 // (helper builds the URL) or `baseURL` directly.
 type AzureURL = AtLeastOne<{ readonly resourceName: string; readonly baseURL: string }>
@@ -76,7 +87,10 @@ const configuredRoute = <Body, Prepared>(route: RouteDef<Body, Prepared>, input:
     auth: auth(input),
     endpoint: {
       // AtLeastOne guarantees at least one is set; baseURL wins if both are.
-      baseURL: input.baseURL ?? resourceBaseURL(input.resourceName!),
+      baseURL:
+        typeof input.baseURL === "string" && input.baseURL !== ""
+          ? normalizeAzureBaseURL(input.baseURL)
+          : resourceBaseURL(input.resourceName!),
       query: {
         ...(input.apiVersion ? { "api-version": input.apiVersion } : {}),
         ...input.queryParams,
@@ -88,6 +102,7 @@ export const configure = (input: Config) => {
   const configuredResponsesRoute = configuredRoute(responsesRoute, input)
   const configuredChatRoute = configuredRoute(chatRoute, input)
   const modelDefaults = defaults(input)
+  const useChatByDefault = input.useCompletionUrls === true || isFoundryBaseURL(input.baseURL)
 
   const responses = (modelID: string | ModelID) =>
     configuredResponsesRoute.with(withOpenAIOptions(modelID, modelDefaults)).model({ id: modelID })
@@ -97,7 +112,7 @@ export const configure = (input: Config) => {
 
   return {
     id,
-    model: (modelID: string | ModelID) => (input.useCompletionUrls === true ? chat(modelID) : responses(modelID)),
+    model: (modelID: string | ModelID) => (useChatByDefault ? chat(modelID) : responses(modelID)),
     responses,
     chat,
     configure,

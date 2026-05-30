@@ -8,6 +8,17 @@ import { ProviderV2 } from "./provider"
 
 type SDK = any
 
+const normalizeAzureBaseURL = (baseURL: string) => baseURL.replace(/\/openai\/v1\/?$/i, "/openai")
+
+const isFoundryHost = (input: unknown) => {
+  if (typeof input !== "string" || input === "") return false
+  try {
+    return new URL(input).hostname.toLowerCase().endsWith(".services.ai.azure.com")
+  } catch {
+    return false
+  }
+}
+
 function wrapSSE(res: Response, ms: number, ctl: AbortController) {
   if (typeof ms !== "number" || ms <= 0) return res
   if (!res.body) return res
@@ -59,6 +70,9 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 function prepareOptions(model: ModelV2.Info, pkg: string) {
   const options: Record<string, any> = { name: model.providerID, ...model.options.aisdk.provider }
   if (model.endpoint.type === "aisdk" && model.endpoint.url) options.baseURL = model.endpoint.url
+  if (pkg === "@ai-sdk/azure" && typeof options.baseURL === "string" && options.baseURL !== "") {
+    options.baseURL = normalizeAzureBaseURL(options.baseURL)
+  }
 
   const customFetch = options.fetch
   const chunkTimeout = options.chunkTimeout
@@ -83,8 +97,12 @@ function prepareOptions(model: ModelV2.Info, pkg: string) {
         for (const item of body.input) {
           if ("id" in item) delete item.id
         }
-        opts.body = JSON.stringify(body)
       }
+      if (pkg === "@ai-sdk/azure" && isFoundryHost(input.toString())) {
+        if ("prompt_cache_key" in body) delete body.prompt_cache_key
+        if ("promptCacheKey" in body) delete body.promptCacheKey
+      }
+      opts.body = JSON.stringify(body)
     }
 
     const res = await (typeof customFetch === "function" ? customFetch : fetch)(input, {

@@ -10,6 +10,7 @@ import * as ProviderShared from "../../src/protocols/shared"
 import { continuationRequest, nativeOpenAIResponsesContinuation } from "../continuation-scenarios"
 import { it } from "../lib/effect"
 import { dynamicResponse, fixedResponse } from "../lib/http"
+import { deltaChunk } from "../lib/openai-chunks"
 import { sseEvents } from "../lib/sse"
 
 const model = OpenAIResponses.route
@@ -181,6 +182,58 @@ describe("OpenAI Responses route", () => {
               expect(web.url).toBe("https://opencode-test.openai.azure.com/openai/v1/responses?api-version=v1")
               expect(web.headers.get("api-key")).toBe("azure-key")
               expect(web.headers.get("authorization")).toBeNull()
+              return input.respond(sseEvents({ type: "response.completed", response: {} }), {
+                headers: { "content-type": "text/event-stream" },
+              })
+            }),
+          ),
+        ),
+      )
+    }),
+  )
+
+  it.effect("routes Azure AI Foundry model() calls to chat completions without duplicating /v1", () =>
+    Effect.gen(function* () {
+      yield* LLMClient.generate(
+        LLM.updateRequest(request, {
+          model: Azure.configure({
+            baseURL: "https://opencode-test.services.ai.azure.com/openai/v1/",
+            apiKey: "azure-key",
+          }).model("deepseek-deployment"),
+        }),
+      ).pipe(
+        Effect.provide(
+          dynamicResponse((input) =>
+            Effect.gen(function* () {
+              const web = yield* HttpClientRequest.toWeb(input.request).pipe(Effect.orDie)
+              expect(web.url).toBe(
+                "https://opencode-test.services.ai.azure.com/openai/v1/chat/completions?api-version=v1",
+              )
+              return input.respond(sseEvents(deltaChunk({}, "stop")), {
+                headers: { "content-type": "text/event-stream" },
+              })
+            }),
+          ),
+        ),
+      )
+    }),
+  )
+
+  it.effect("keeps Azure OpenAI model() default on responses", () =>
+    Effect.gen(function* () {
+      yield* LLMClient.generate(
+        LLM.updateRequest(request, {
+          model: Azure.configure({
+            baseURL: "https://opencode-test.openai.azure.com/openai/v1/",
+            apiKey: "azure-key",
+          }).model("gpt-4.1-mini"),
+        }),
+      ).pipe(
+        Effect.provide(
+          dynamicResponse((input) =>
+            Effect.gen(function* () {
+              const web = yield* HttpClientRequest.toWeb(input.request).pipe(Effect.orDie)
+              expect(web.url).toBe("https://opencode-test.openai.azure.com/openai/v1/responses?api-version=v1")
               return input.respond(sseEvents({ type: "response.completed", response: {} }), {
                 headers: { "content-type": "text/event-stream" },
               })

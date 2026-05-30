@@ -421,6 +421,27 @@ If you encounter "I'm sorry, but I cannot assist with that request" errors, try 
    /models
    ```
 
+#### Azure AI Foundry config example
+
+For `*.services.ai.azure.com` deployments, configure a Foundry base URL:
+
+```jsonc
+{
+  "provider": {
+    "azure": {
+      "options": {
+        "baseURL": "https://<resource>.services.ai.azure.com/openai/v1"
+      },
+      "models": {
+        "<deployment-name>": {
+          "name": "<display name>"
+        }
+      }
+    }
+  }
+}
+```
+
 ---
 
 ### Azure Cognitive Services
