@@ -381,6 +381,11 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
     if (!Number.isFinite(value)) return 0
     return Math.max(0, value)
   }
+  const numberField = (value: unknown, key: string) => {
+    if (!value || typeof value !== "object") return undefined
+    const field = (value as Record<string, unknown>)[key]
+    return typeof field === "number" ? field : undefined
+  }
   const inputTokens = safe(input.usage.inputTokens ?? 0)
   const outputTokens = safe(input.usage.outputTokens ?? 0)
   const reasoningTokens = safe(input.usage.reasoningTokens ?? 0)
@@ -388,8 +393,8 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
   const cacheReadInputTokens = safe(input.usage.cacheReadInputTokens ?? 0)
   const anthropicCacheWrite = input.metadata?.["anthropic"]?.["cacheCreationInputTokens"]
   const vertexCacheWrite = input.metadata?.["vertex"]?.["cacheCreationInputTokens"]
-  const bedrockCacheWrite = input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"]
-  const veniceCacheWrite = input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"]
+  const bedrockCacheWrite = numberField(input.metadata?.["bedrock"]?.["usage"], "cacheWriteInputTokens")
+  const veniceCacheWrite = numberField(input.metadata?.["venice"]?.["usage"], "cacheCreationInputTokens")
   const cacheWriteInputTokens = safe(
     Number(
       input.usage.cacheWriteInputTokens ??
@@ -397,9 +402,7 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
         // google-vertex-anthropic returns metadata under "vertex" key
         // (AnthropicMessagesLanguageModel custom provider key from 'vertex.anthropic.messages')
         vertexCacheWrite ??
-        // @ts-expect-error
         bedrockCacheWrite ??
-        // @ts-expect-error
         veniceCacheWrite ??
         0,
     ),
