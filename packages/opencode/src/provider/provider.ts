@@ -1218,6 +1218,61 @@ function modelSuggestions(provider: Info | undefined, modelID: ModelID, enableEx
     .map((item) => item.id)
 }
 
+const AZURE_FOUNDRY_DEEPSEEK_MODELS = [
+  {
+    deploymentID: "DeepSeek-V4-Pro",
+    metadataID: "deepseek-v4-pro",
+  },
+  {
+    deploymentID: "DeepSeek-V4-Flash",
+    metadataID: "deepseek-v4-flash",
+  },
+] as const
+
+function findModelsDevModel(providers: Record<string, ModelsDev.Provider>, id: string): ModelsDev.Model | undefined {
+  const preferred = providers["deepseek"]?.models[id]
+  if (preferred) return preferred
+  for (const provider of Object.values(providers)) {
+    if (provider.models[id]) return provider.models[id]
+  }
+  return undefined
+}
+
+export function enrichAzureFoundryCatalog(
+  providers: Record<string, ModelsDev.Provider>,
+): Record<string, ModelsDev.Provider> {
+  const azure = providers["azure"]
+  if (!azure) return providers
+
+  const models: Record<string, ModelsDev.Model> = {
+    ...azure.models,
+  }
+
+  let changed = false
+
+  for (const item of AZURE_FOUNDRY_DEEPSEEK_MODELS) {
+    if (models[item.deploymentID]) continue
+    const source = findModelsDevModel(providers, item.metadataID)
+    if (!source) continue
+    models[item.deploymentID] = {
+      ...source,
+      id: item.deploymentID,
+      provider: undefined,
+    }
+    changed = true
+  }
+
+  if (!changed) return providers
+
+  return {
+    ...providers,
+    azure: {
+      ...azure,
+      models,
+    },
+  }
+}
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -1234,7 +1289,7 @@ export const layer = Layer.effect(
         using _ = log.time("state")
         const bridge = yield* EffectBridge.make()
         const cfg = yield* config.get()
-        const modelsDev = yield* modelsDevSvc.get()
+        const modelsDev = enrichAzureFoundryCatalog(yield* modelsDevSvc.get())
         const catalog = mapValues(modelsDev, fromModelsDevProvider)
         const database = mapValues(catalog, toPublicInfo)
 

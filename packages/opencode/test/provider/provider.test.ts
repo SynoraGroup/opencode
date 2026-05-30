@@ -1304,6 +1304,78 @@ test("models.dev normalization fills required response fields", () => {
   expect(model.release_date).toBe("")
 })
 
+test("enrichAzureFoundryCatalog adds DeepSeek V4 deployments to azure using canonical metadata", () => {
+  const providers = {
+    azure: {
+      id: "azure",
+      name: "Azure OpenAI",
+      env: [],
+      npm: "@ai-sdk/azure",
+      models: {
+        "kimi-k2.6": {
+          id: "kimi-k2.6",
+          name: "Kimi K2.6",
+          family: "kimi",
+          release_date: "2026-01-01",
+          attachment: false,
+          reasoning: true,
+          temperature: true,
+          tool_call: true,
+          cost: { input: 0.8, output: 3.2 },
+          limit: { context: 256_000, output: 16_000 },
+        },
+      },
+    },
+    deepseek: {
+      id: "deepseek",
+      name: "DeepSeek",
+      env: [],
+      models: {
+        "deepseek-v4-pro": {
+          id: "deepseek-v4-pro",
+          name: "DeepSeek V4 Pro",
+          family: "deepseek-v4-pro",
+          release_date: "2026-03-01",
+          attachment: false,
+          reasoning: true,
+          temperature: true,
+          tool_call: true,
+          cost: { input: 2.2, output: 8.8, cache_read: 0.22, cache_write: 1.1 },
+          limit: { context: 1_048_576, output: 32_000 },
+        },
+        "deepseek-v4-flash": {
+          id: "deepseek-v4-flash",
+          name: "DeepSeek V4 Flash",
+          family: "deepseek-v4-flash",
+          release_date: "2026-03-01",
+          attachment: false,
+          reasoning: true,
+          temperature: true,
+          tool_call: true,
+          cost: { input: 0.6, output: 2.4 },
+          limit: { context: 1_048_576, output: 32_000 },
+        },
+      },
+    },
+  } as unknown as Record<string, ModelsDev.Provider>
+
+  const enriched = Provider.enrichAzureFoundryCatalog(providers)
+  const azure = enriched.azure
+  expect(azure.models["kimi-k2.6"]?.id).toBe("kimi-k2.6")
+  expect(azure.models["DeepSeek-V4-Pro"]?.id).toBe("DeepSeek-V4-Pro")
+  expect(azure.models["DeepSeek-V4-Flash"]?.id).toBe("DeepSeek-V4-Flash")
+
+  const modelPro = Provider.fromModelsDevProvider(azure).models["DeepSeek-V4-Pro"]
+  const modelFlash = Provider.fromModelsDevProvider(azure).models["DeepSeek-V4-Flash"]
+
+  expect(modelPro.api.id).toBe("DeepSeek-V4-Pro")
+  expect(modelFlash.api.id).toBe("DeepSeek-V4-Flash")
+  expect(modelPro.limit.context).toBe(1_048_576)
+  expect(modelPro.cost.input).toBe(2.2)
+  expect(modelPro.cost.cache.read).toBe(0.22)
+  expect(modelPro.cost.cache.write).toBe(1.1)
+})
+
 it.instance("model variants are generated for reasoning models", () =>
   Effect.gen(function* () {
     yield* set("ANTHROPIC_API_KEY", "test-api-key")

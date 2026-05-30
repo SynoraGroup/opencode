@@ -42,6 +42,7 @@ import { NonNegativeInt, optionalOmitUndefined } from "@opencode-ai/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 
 const log = Log.create({ service: "session" })
+const usageDebugEnabled = process.env.OPENCODE_USAGE_DEBUG === "1"
 
 const parentTitlePrefix = "New session - "
 const childTitlePrefix = "Child session - "
@@ -385,17 +386,21 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
   const reasoningTokens = safe(input.usage.reasoningTokens ?? 0)
 
   const cacheReadInputTokens = safe(input.usage.cacheReadInputTokens ?? 0)
+  const anthropicCacheWrite = input.metadata?.["anthropic"]?.["cacheCreationInputTokens"]
+  const vertexCacheWrite = input.metadata?.["vertex"]?.["cacheCreationInputTokens"]
+  const bedrockCacheWrite = input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"]
+  const veniceCacheWrite = input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"]
   const cacheWriteInputTokens = safe(
     Number(
       input.usage.cacheWriteInputTokens ??
-        input.metadata?.["anthropic"]?.["cacheCreationInputTokens"] ??
+        anthropicCacheWrite ??
         // google-vertex-anthropic returns metadata under "vertex" key
         // (AnthropicMessagesLanguageModel custom provider key from 'vertex.anthropic.messages')
-        input.metadata?.["vertex"]?.["cacheCreationInputTokens"] ??
+        vertexCacheWrite ??
         // @ts-expect-error
-        input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"] ??
+        bedrockCacheWrite ??
         // @ts-expect-error
-        input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"] ??
+        veniceCacheWrite ??
         0,
     ),
   )
@@ -426,6 +431,39 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
     (input.model.cost?.experimentalOver200K && contextTokens > 200_000
       ? input.model.cost.experimentalOver200K
       : input.model.cost)
+
+  if (usageDebugEnabled) {
+    log.info("usage.debug", {
+      providerID: input.model.providerID,
+      modelID: input.model.id,
+      apiModelID: input.model.api.id,
+      rawUsage: {
+        usageProviderMetadata: input.usage.providerMetadata,
+        eventProviderMetadata: input.metadata,
+      },
+      mappedUsage: {
+        usage: {
+          inputTokens: input.usage.inputTokens,
+          outputTokens: input.usage.outputTokens,
+          totalTokens: input.usage.totalTokens,
+          reasoningTokens: input.usage.reasoningTokens,
+          cacheReadInputTokens: input.usage.cacheReadInputTokens,
+          cacheWriteInputTokens: input.usage.cacheWriteInputTokens,
+        },
+        tokens,
+      },
+      costMetadata: costInfo,
+      cacheFields: {
+        usageCacheRead: input.usage.cacheReadInputTokens === undefined ? "absent" : "present",
+        usageCacheWrite: input.usage.cacheWriteInputTokens === undefined ? "absent" : "present",
+        metadataAnthropicCacheWrite: anthropicCacheWrite === undefined ? "absent" : "present",
+        metadataVertexCacheWrite: vertexCacheWrite === undefined ? "absent" : "present",
+        metadataBedrockCacheWrite: bedrockCacheWrite === undefined ? "absent" : "present",
+        metadataVeniceCacheWrite: veniceCacheWrite === undefined ? "absent" : "present",
+      },
+    })
+  }
+
   return {
     cost: safe(
       new Decimal(0)
