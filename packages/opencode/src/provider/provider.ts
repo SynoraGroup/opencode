@@ -164,6 +164,19 @@ function selectAzureLanguageModel(sdk: any, modelID: string, useChat: boolean) {
   return sdk.languageModel(modelID)
 }
 
+function normalizeAzureBaseURL(baseURL: string) {
+  return baseURL.replace(/\/openai\/v1\/?$/i, "/openai")
+}
+
+function isAzureAIFoundryURL(input: unknown) {
+  if (typeof input !== "string" || input === "") return false
+  try {
+    return new URL(input).hostname.toLowerCase().endsWith(".services.ai.azure.com")
+  } catch {
+    return false
+  }
+}
+
 function custom(dep: CustomDep): Record<string, CustomLoader> {
   return {
     anthropic: () =>
@@ -248,7 +261,11 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       return {
         autoload: false,
         async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
-          return selectAzureLanguageModel(sdk, modelID, Boolean(options?.["useCompletionUrls"]))
+          return selectAzureLanguageModel(
+            sdk,
+            modelID,
+            Boolean(options?.["useCompletionUrls"]) || isAzureAIFoundryURL(options?.["baseURL"]),
+          )
         },
         options: {
           resourceName: resource,
@@ -268,7 +285,11 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       return {
         autoload: false,
         async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
-          return selectAzureLanguageModel(sdk, modelID, Boolean(options?.["useCompletionUrls"]))
+          return selectAzureLanguageModel(
+            sdk,
+            modelID,
+            Boolean(options?.["useCompletionUrls"]) || isAzureAIFoundryURL(options?.["baseURL"]),
+          )
         },
         options: {
           baseURL: resourceName ? `https://${resourceName}.cognitiveservices.azure.com/openai` : undefined,
@@ -1592,6 +1613,9 @@ export const layer = Layer.effect(
         })
 
         if (baseURL !== undefined) options["baseURL"] = baseURL
+        if (model.api.npm === "@ai-sdk/azure" && typeof options["baseURL"] === "string" && options["baseURL"] !== "") {
+          options["baseURL"] = normalizeAzureBaseURL(options["baseURL"])
+        }
         if (options["apiKey"] === undefined && provider.key) options["apiKey"] = provider.key
         if (model.headers)
           options["headers"] = {
@@ -1646,8 +1670,12 @@ export const layer = Layer.effect(
                   delete item.id
                 }
               }
-              opts.body = JSON.stringify(body)
             }
+            if (model.api.npm === "@ai-sdk/azure" && isAzureAIFoundryURL(input.toString())) {
+              if ("prompt_cache_key" in body) delete body.prompt_cache_key
+              if ("promptCacheKey" in body) delete body.promptCacheKey
+            }
+            opts.body = JSON.stringify(body)
           }
 
           const res = await fetchFn(input, {
@@ -1744,6 +1772,7 @@ export const layer = Layer.effect(
             ? await s.modelLoaders[model.providerID](sdk, model.api.id, {
                 ...provider.options,
                 ...model.options,
+                baseURL: provider.options?.baseURL ?? model.options?.baseURL ?? model.api.url,
               })
             : sdk.languageModel(model.api.id)
           s.models.set(key, language)

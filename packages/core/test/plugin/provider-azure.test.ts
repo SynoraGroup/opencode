@@ -235,6 +235,42 @@ describe("AzurePlugin", () => {
     }),
   )
 
+  it.effect("auto-selects chat for azure ai foundry base URLs", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      const calls: string[] = []
+      yield* plugin.add(AzurePlugin)
+      yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("azure", "deployment"),
+          sdk: fakeSelectorSdk(calls),
+          options: { baseURL: "https://example.services.ai.azure.com/openai/v1" },
+        },
+        {},
+      )
+      expect(calls).toEqual(["chat:deployment"])
+    }),
+  )
+
+  it.effect("keeps responses default for classic azure openai base URLs", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      const calls: string[] = []
+      yield* plugin.add(AzurePlugin)
+      yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("azure", "deployment"),
+          sdk: fakeSelectorSdk(calls),
+          options: { baseURL: "https://example.openai.azure.com/openai/v1" },
+        },
+        {},
+      )
+      expect(calls).toEqual(["responses:deployment"])
+    }),
+  )
+
   it.effect("uses the legacy Azure selector order and provider guard", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
