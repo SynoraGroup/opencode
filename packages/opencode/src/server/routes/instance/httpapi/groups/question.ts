@@ -67,8 +67,8 @@ export const QuestionApi = HttpApi.make("question")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Effect HttpApi surface for instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

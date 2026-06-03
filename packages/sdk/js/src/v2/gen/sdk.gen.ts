@@ -435,7 +435,7 @@ export class App extends HeyApiClient {
   /**
    * List agents
    *
-   * Get a list of all available AI agents in the OpenCode system.
+   * Get a list of all available agents in the local Synora harness.
    */
   public agents<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -465,7 +465,7 @@ export class App extends HeyApiClient {
   /**
    * List skills
    *
-   * Get a list of all available skills in the OpenCode system.
+   * Get a list of all available skills in the local Synora harness.
    */
   public skills<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -497,7 +497,7 @@ export class Config extends HeyApiClient {
   /**
    * Get global configuration
    *
-   * Retrieve the current global OpenCode configuration settings and preferences.
+   * Retrieve the current global Synora harness configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<GlobalConfigGetResponses, GlobalConfigGetErrors, ThrowOnError>({
@@ -509,7 +509,7 @@ export class Config extends HeyApiClient {
   /**
    * Update global configuration
    *
-   * Update global OpenCode configuration settings and preferences.
+   * Update global Synora harness configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -535,7 +535,7 @@ export class Global extends HeyApiClient {
   /**
    * Get health
    *
-   * Get health information about the OpenCode server.
+   * Get health information about the local Synora server.
    */
   public health<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<GlobalHealthResponses, GlobalHealthErrors, ThrowOnError>({
@@ -547,7 +547,7 @@ export class Global extends HeyApiClient {
   /**
    * Get global events
    *
-   * Subscribe to global events from the OpenCode system using server-sent events.
+   * Subscribe to global events from the local Synora system using server-sent events.
    */
   public event<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).sse.get<GlobalEventResponses, GlobalEventErrors, ThrowOnError>({
@@ -559,7 +559,7 @@ export class Global extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose all OpenCode instances, releasing all resources.
+   * Clean up and dispose all local Synora instances, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<GlobalDisposeResponses, GlobalDisposeErrors, ThrowOnError>({
@@ -569,9 +569,9 @@ export class Global extends HeyApiClient {
   }
 
   /**
-   * Upgrade opencode
+   * Update disabled
    *
-   * Upgrade opencode to the specified version or latest if not specified.
+   * Synora Code is detached from upstream opencode updates.
    */
   public upgrade<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -634,7 +634,7 @@ export class Config2 extends HeyApiClient {
   /**
    * Get configuration
    *
-   * Retrieve the current OpenCode configuration settings and preferences.
+   * Retrieve the current local Synora harness configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -664,7 +664,7 @@ export class Config2 extends HeyApiClient {
   /**
    * Update configuration
    *
-   * Update OpenCode configuration settings and preferences.
+   * Update local Synora harness configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -701,7 +701,7 @@ export class Config2 extends HeyApiClient {
   /**
    * List config providers
    *
-   * Get a list of all configured AI providers and their default models.
+   * Get the approved Synora providers and their default models from the current configuration.
    */
   public providers<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -801,7 +801,7 @@ export class Console extends HeyApiClient {
   /**
    * Switch active Console org
    *
-   * Persist a new active Console account/org selection for the current local OpenCode state.
+   * Persist a new active Console account or org selection for the current local Synora state.
    */
   public switchOrg<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -842,7 +842,7 @@ export class Session extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
+   * Get a list of all local Synora sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1630,7 +1630,7 @@ export class Instance extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose the current OpenCode instance, releasing all resources.
+   * Clean up and dispose the current local Synora instance, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1662,7 +1662,7 @@ export class Path extends HeyApiClient {
   /**
    * Get paths
    *
-   * Retrieve the current working directory and related path information for the OpenCode instance.
+   * Retrieve the current working directory and related path information for the local Synora instance.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1864,7 +1864,7 @@ export class Command extends HeyApiClient {
   /**
    * List commands
    *
-   * Get a list of all available commands in the OpenCode system.
+   * Get a list of all available commands in the local Synora harness.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2235,7 +2235,7 @@ export class Project extends HeyApiClient {
   /**
    * List all projects
    *
-   * Get a list of projects that have been opened with OpenCode.
+   * Get a list of projects that have been opened with the local Synora harness.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2265,7 +2265,7 @@ export class Project extends HeyApiClient {
   /**
    * Get current project
    *
-   * Retrieve the currently active project that OpenCode is working with.
+   * Retrieve the project currently active in the local Synora harness.
    */
   public current<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2409,7 +2409,7 @@ export class Pty extends HeyApiClient {
   /**
    * List PTY sessions
    *
-   * Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.
+   * Get a list of all active pseudo-terminal (PTY) sessions managed by the local Synora instance.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2883,7 +2883,7 @@ export class Oauth extends HeyApiClient {
   /**
    * Start OAuth authorization
    *
-   * Start the OAuth authorization flow for a provider.
+   * Start the OAuth authorization flow for a provider when that auth mode is enabled.
    */
   public authorize<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2930,7 +2930,7 @@ export class Oauth extends HeyApiClient {
   /**
    * Handle OAuth callback
    *
-   * Handle the OAuth callback from a provider after user authorization.
+   * Handle the OAuth callback for a provider after authorization completes.
    */
   public callback<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2977,7 +2977,7 @@ export class Provider extends HeyApiClient {
   /**
    * List providers
    *
-   * Get a list of all available AI providers, including both available and connected ones.
+   * Get the approved Synora providers, including their current availability and connection state.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3007,7 +3007,7 @@ export class Provider extends HeyApiClient {
   /**
    * Get provider auth methods
    *
-   * Retrieve available authentication methods for all AI providers.
+   * Retrieve the supported authentication methods for the approved Synora providers.
    */
   public auth<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3044,7 +3044,7 @@ export class Session2 extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all OpenCode sessions, sorted by most recently updated.
+   * Get a list of all local Synora sessions, sorted by most recently updated.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3086,7 +3086,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a new OpenCode session for interacting with AI assistants and managing conversations.
+   * Create a new local Synora session for interacting with the approved coding models.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3199,7 +3199,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Get session
    *
-   * Retrieve detailed information about a specific OpenCode session.
+   * Retrieve detailed information about a specific local Synora session.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3656,7 +3656,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Unshare session
    *
-   * Remove the shareable link for a session, making it private again.
+   * Session unshare is retained only for compatibility with existing session state.
    */
   public unshare<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3688,7 +3688,7 @@ export class Session2 extends HeyApiClient {
   /**
    * Share session
    *
-   * Create a shareable link for a session, allowing others to view the conversation.
+   * Session sharing is not part of the standard private Synora workflow.
    */
   public share<ThrowOnError extends boolean = false>(
     parameters: {

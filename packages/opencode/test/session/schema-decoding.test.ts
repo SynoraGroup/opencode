@@ -236,9 +236,8 @@ describe("SessionStatus.Info", () => {
         reason: "free_tier_limit",
         provider: "opencode",
         title: "Free limit reached",
-        message: "Subscribe to OpenCode Go.",
-        label: "subscribe",
-        link: "https://opencode.ai/go",
+        message: "Check Synora quota.",
+        label: "dismiss",
       },
       next: 500,
     }

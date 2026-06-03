@@ -41,7 +41,8 @@ export const ProviderApi = HttpApi.make("provider")
           OpenApi.annotations({
             identifier: "provider.list",
             summary: "List providers",
-            description: "Get a list of all available AI providers, including both available and connected ones.",
+            description:
+              "Get the approved Synora providers, including their current availability and connection state.",
           }),
         ),
         HttpApiEndpoint.get("auth", `${root}/auth`, {
@@ -51,7 +52,7 @@ export const ProviderApi = HttpApi.make("provider")
           OpenApi.annotations({
             identifier: "provider.auth",
             summary: "Get provider auth methods",
-            description: "Retrieve available authentication methods for all AI providers.",
+            description: "Retrieve the supported authentication methods for the approved Synora providers.",
           }),
         ),
         HttpApiEndpoint.post("authorize", `${root}/:providerID/oauth/authorize`, {
@@ -64,7 +65,7 @@ export const ProviderApi = HttpApi.make("provider")
           OpenApi.annotations({
             identifier: "provider.oauth.authorize",
             summary: "Start OAuth authorization",
-            description: "Start the OAuth authorization flow for a provider.",
+            description: "Start the OAuth authorization flow for a provider when that auth mode is enabled.",
           }),
         ),
         HttpApiEndpoint.post("callback", `${root}/:providerID/oauth/callback`, {
@@ -77,14 +78,14 @@ export const ProviderApi = HttpApi.make("provider")
           OpenApi.annotations({
             identifier: "provider.oauth.callback",
             summary: "Handle OAuth callback",
-            description: "Handle the OAuth callback from a provider after user authorization.",
+            description: "Handle the OAuth callback for a provider after authorization completes.",
           }),
         ),
       )
       .annotateMerge(
         OpenApi.annotations({
           title: "provider",
-          description: "Experimental HttpApi provider routes.",
+          description: "Instance provider routes.",
         }),
       )
       .middleware(InstanceContextMiddleware)
@@ -93,8 +94,8 @@ export const ProviderApi = HttpApi.make("provider")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

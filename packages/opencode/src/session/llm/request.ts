@@ -5,6 +5,7 @@ import { Permission } from "@/permission"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "../message-v2"
 import type { Provider } from "@/provider/provider"
+import { SynoraProvider } from "@/provider/synora"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
@@ -52,6 +53,7 @@ const mergeOptions = (target: Record<string, any>, source: Record<string, any> |
   mergeDeep(target, source ?? {}) as Record<string, any>
 
 export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
+  const isSynora = SynoraProvider.isSynoraProvider(input.model.providerID)
   const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
   const system = [
     [
@@ -79,13 +81,20 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     !input.small && input.model.variants && input.user.model.variant
       ? input.model.variants[input.user.model.variant]
       : {}
-  const base = input.small
-    ? ProviderTransform.smallOptions(input.model)
-    : ProviderTransform.options({
-        model: input.model,
-        sessionID: input.sessionID,
-        providerOptions: input.provider.options,
-      })
+  const base = SynoraProvider.isSynoraProvider(input.model.providerID)
+    ? input.small
+      ? SynoraProvider.smallOptions({ model: input.model })
+      : SynoraProvider.options({
+          model: input.model,
+          sessionID: input.sessionID,
+        })
+    : input.small
+      ? ProviderTransform.smallOptions(input.model)
+      : ProviderTransform.options({
+          model: input.model,
+          sessionID: input.sessionID,
+          providerOptions: input.provider.options,
+        })
   const options = mergeOptions(mergeOptions(mergeOptions(base, input.model.options), input.agent.options), variant)
   if (isOpenaiOauth) options.instructions = system.join("\n")
 
@@ -113,10 +122,10 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     },
     {
       temperature: input.model.capabilities.temperature
-        ? (input.agent.temperature ?? ProviderTransform.temperature(input.model))
+        ? (input.agent.temperature ?? (isSynora ? undefined : ProviderTransform.temperature(input.model)))
         : undefined,
-      topP: input.agent.topP ?? ProviderTransform.topP(input.model),
-      topK: ProviderTransform.topK(input.model),
+      topP: input.agent.topP ?? (isSynora ? undefined : ProviderTransform.topP(input.model)),
+      topK: isSynora ? undefined : ProviderTransform.topK(input.model),
       maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.flags.outputTokenMax),
       options,
     },

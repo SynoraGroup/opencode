@@ -111,7 +111,7 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.list",
             summary: "List sessions",
-            description: "Get a list of all OpenCode sessions, sorted by most recently updated.",
+            description: "Get a list of all local Synora sessions, sorted by most recently updated.",
           }),
         ),
         HttpApiEndpoint.get("status", SessionPaths.status, {
@@ -134,7 +134,7 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.get",
             summary: "Get session",
-            description: "Retrieve detailed information about a specific OpenCode session.",
+            description: "Retrieve detailed information about a specific local Synora session.",
           }),
         ),
         HttpApiEndpoint.get("children", SessionPaths.children, {
@@ -205,7 +205,7 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.create",
             summary: "Create session",
-            description: "Create a new OpenCode session for interacting with AI assistants and managing conversations.",
+            description: "Create a new local Synora session for interacting with the approved coding models.",
           }),
         ),
         HttpApiEndpoint.delete("remove", SessionPaths.remove, {
@@ -281,7 +281,7 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.share",
             summary: "Share session",
-            description: "Create a shareable link for a session, allowing others to view the conversation.",
+            description: "Session sharing is not part of the standard private Synora workflow.",
           }),
         ),
         HttpApiEndpoint.delete("unshare", SessionPaths.share, {
@@ -293,7 +293,7 @@ export const SessionApi = HttpApi.make("session")
           OpenApi.annotations({
             identifier: "session.unshare",
             summary: "Unshare session",
-            description: "Remove the shareable link for a session, making it private again.",
+            description: "Session unshare is retained only for compatibility with existing session state.",
           }),
         ),
         HttpApiEndpoint.post("summarize", SessionPaths.summarize, {
@@ -442,7 +442,7 @@ export const SessionApi = HttpApi.make("session")
       .annotateMerge(
         OpenApi.annotations({
           title: "session",
-          description: "Experimental HttpApi session routes.",
+          description: "Instance session routes.",
         }),
       )
       .middleware(InstanceContextMiddleware)
@@ -451,8 +451,8 @@ export const SessionApi = HttpApi.make("session")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

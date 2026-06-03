@@ -156,7 +156,11 @@ describe("LLMClient tools", () => {
       })
 
       const events = Array.from(
-        yield* LLMClient.stream({ request: baseRequest, tools: { screenshot } }).pipe(
+        yield* LLMClient.stream({
+          request: baseRequest,
+          tools: { screenshot },
+          stopWhen: (state) => state.step >= 0,
+        }).pipe(
           Stream.runCollect,
           Effect.provide(
             scriptedResponses([sseEvents(toolCallChunk("call_1", "screenshot", "{}"), finishChunk("tool_calls"))]),
@@ -179,11 +183,11 @@ describe("LLMClient tools", () => {
     }),
   )
 
-  it.effect("executes tool calls for one step without looping by default", () =>
+  it.effect("continues follow-up model rounds after executing local tools by default", () =>
     Effect.gen(function* () {
       const layer = scriptedResponses([
         sseEvents(toolCallChunk("call_1", "get_weather", '{"city":"Paris"}'), finishChunk("tool_calls")),
-        sseEvents(deltaChunk({ role: "assistant", content: "Should not run." }), finishChunk("stop")),
+        sseEvents(deltaChunk({ role: "assistant", content: "Ran follow-up." }), finishChunk("stop")),
       ])
 
       const events = Array.from(
@@ -195,6 +199,7 @@ describe("LLMClient tools", () => {
 
       expect(events.filter(LLMEvent.is.finish)).toHaveLength(1)
       expect(events.find(LLMEvent.is.toolResult)).toMatchObject({ type: "tool-result", id: "call_1" })
+      expect(LLMResponse.text({ events })).toBe("Ran follow-up.")
     }),
   )
 

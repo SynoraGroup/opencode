@@ -25,10 +25,12 @@ const REASONING_EFFORTS = new Set<string>(ReasoningEfforts)
 const OPENAI_REASONING_EFFORTS = new Set<string>(OpenAIReasoningEfforts)
 const TEXT_VERBOSITY = new Set<string>(["low", "medium", "high"])
 const INCLUDABLES = new Set<string>(OpenAIResponseIncludables)
+const PROMPT_CACHE_RETENTIONS = new Set<string>(["in_memory", "24h"])
 
 export const OpenAIReasoningEffort = Schema.Literals(OpenAIReasoningEfforts)
 export const OpenAITextVerbosity = TextVerbosity
 export const OpenAIResponseIncludable = Schema.Literals(OpenAIResponseIncludables)
+export const OpenAIPromptCacheRetention = Schema.Literals(["in_memory", "24h"] as const)
 
 const isAnyReasoningEffort = (effort: unknown): effort is ReasoningEffort =>
   typeof effort === "string" && REASONING_EFFORTS.has(effort)
@@ -38,6 +40,9 @@ export const isReasoningEffort = (effort: unknown): effort is OpenAIReasoningEff
 
 const isTextVerbosity = (value: unknown): value is TextVerbosityValue =>
   typeof value === "string" && TEXT_VERBOSITY.has(value)
+
+const isPromptCacheRetention = (value: unknown): value is "in_memory" | "24h" =>
+  typeof value === "string" && PROMPT_CACHE_RETENTIONS.has(value)
 
 const options = (request: LLMRequest) => request.providerOptions?.openai
 
@@ -69,6 +74,11 @@ export const include = (request: LLMRequest): ReadonlyArray<OpenAIResponseInclud
 export const promptCacheKey = (request: LLMRequest) => {
   const value = options(request)?.promptCacheKey
   return typeof value === "string" ? value : undefined
+}
+
+export const promptCacheRetention = (request: LLMRequest) => {
+  const value = options(request)?.promptCacheRetention
+  return isPromptCacheRetention(value) ? value : undefined
 }
 
 export const textVerbosity = (request: LLMRequest) => {

@@ -1,5 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { expect } from "bun:test"
+import { expect, test } from "bun:test"
 import { tool } from "ai"
 import { Cause, Effect, Exit, Fiber, Layer } from "effect"
 import path from "path"
@@ -16,7 +16,7 @@ import { ModelID, ProviderID } from "../../src/provider/schema"
 import { Session } from "@/session/session"
 import { LLM } from "../../src/session/llm"
 import { MessageV2 } from "../../src/session/message-v2"
-import { SessionProcessor } from "../../src/session/processor"
+import { SessionProcessor, repeatedLargeZeroCacheSteps } from "../../src/session/processor"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
@@ -202,6 +202,40 @@ const boot = Effect.fn("test.boot")(function* () {
   const session = yield* Session.Service
   const provider = yield* Provider.Service
   return { processors, session, provider }
+})
+
+test("repeatedLargeZeroCacheSteps counts repeated large zero-cache steps for Synora cache-capable models", () => {
+  const model = {
+    providerID: ProviderID.make("synora-foundry"),
+    options: {},
+    api: { npm: "@ai-sdk/azure" },
+  } as any
+
+  expect(
+    repeatedLargeZeroCacheSteps({
+      model,
+      steps: [
+        { tokens: { input: 45_000, output: 1_000, reasoning: 0, cache: { read: 0, write: 0 } } },
+        { tokens: { input: 50_000, output: 1_000, reasoning: 0, cache: { read: 0, write: 0 } } },
+        { tokens: { input: 10_000, output: 1_000, reasoning: 0, cache: { read: 0, write: 0 } } },
+      ],
+    }),
+  ).toBe(2)
+})
+
+test("repeatedLargeZeroCacheSteps ignores Synora routes without cache support", () => {
+  const model = {
+    providerID: ProviderID.make("synora-foundry"),
+    options: { useCompletionUrls: true },
+    api: { npm: "@ai-sdk/azure" },
+  } as any
+
+  expect(
+    repeatedLargeZeroCacheSteps({
+      model,
+      steps: [{ tokens: { input: 45_000, output: 1_000, reasoning: 0, cache: { read: 0, write: 0 } } }],
+    }),
+  ).toBe(0)
 })
 
 // ---------------------------------------------------------------------------

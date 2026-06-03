@@ -27,7 +27,7 @@ const apiLayer = HttpRouter.serve(
   Layer.provide(Layer.mock(Config.Service)({})),
   Layer.provide(
     Layer.mock(Installation.Service)({
-      method: () => Effect.succeed("npm"),
+      method: () => Effect.succeed("synora-local"),
       latest: () => Effect.succeed("9.9.9"),
       upgrade: () => Effect.void,
     }),
@@ -40,12 +40,15 @@ const apiLayer = HttpRouter.serve(
 const it = testEffect(apiLayer)
 
 describe("global HttpApi", () => {
-  it.live("upgrades to latest when the request body is omitted", () =>
+  it.live("returns disabled result for upgrade requests", () =>
     Effect.gen(function* () {
       const response = yield* HttpClient.post(GlobalPaths.upgrade)
 
-      expect(response.status).toBe(200)
-      expect(yield* response.json).toEqual({ success: true, version: "9.9.9" })
+      expect(response.status).toBe(400)
+      expect(yield* response.json).toEqual({
+        success: false,
+        error: "Synora Code is detached from upstream opencode updates.",
+      })
     }),
   )
 

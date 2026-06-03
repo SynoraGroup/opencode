@@ -65,6 +65,24 @@ describe("OpenAI Chat route", () => {
     }),
   )
 
+  it.effect("lowers prompt_cache_retention on Chat payloads when configured", () =>
+    Effect.gen(function* () {
+      const prepared = yield* LLMClient.prepare<OpenAIChat.OpenAIChatBody>(
+        LLM.request({
+          model: Azure.configure({
+            baseURL: "https://opencode-test.services.ai.azure.com/openai/v1/",
+            apiKey: "azure-key",
+          }).chat("gpt-5.4-chat"),
+          prompt: "cache this",
+          providerOptions: { openai: { store: false, promptCacheRetention: "24h" } },
+        }),
+      )
+
+      expect(prepared.body.store).toBe(false)
+      expect(prepared.body.prompt_cache_retention).toBe("24h")
+    }),
+  )
+
   it.effect("adds native query params to the Chat Completions URL", () =>
     LLMClient.generate(
       LLM.updateRequest(request, {

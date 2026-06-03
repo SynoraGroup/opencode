@@ -19,7 +19,7 @@ export const ConfigApi = HttpApi.make("config")
           OpenApi.annotations({
             identifier: "config.get",
             summary: "Get configuration",
-            description: "Retrieve the current OpenCode configuration settings and preferences.",
+            description: "Retrieve the current local Synora harness configuration settings and preferences.",
           }),
         ),
         HttpApiEndpoint.patch("update", root, {
@@ -31,7 +31,7 @@ export const ConfigApi = HttpApi.make("config")
           OpenApi.annotations({
             identifier: "config.update",
             summary: "Update configuration",
-            description: "Update OpenCode configuration settings and preferences.",
+            description: "Update local Synora harness configuration settings and preferences.",
           }),
         ),
         HttpApiEndpoint.get("providers", `${root}/providers`, {
@@ -41,14 +41,14 @@ export const ConfigApi = HttpApi.make("config")
           OpenApi.annotations({
             identifier: "config.providers",
             summary: "List config providers",
-            description: "Get a list of all configured AI providers and their default models.",
+            description: "Get the approved Synora providers and their default models from the current configuration.",
           }),
         ),
       )
       .annotateMerge(
         OpenApi.annotations({
           title: "config",
-          description: "Experimental HttpApi config routes.",
+          description: "Instance configuration routes.",
         }),
       )
       .middleware(InstanceContextMiddleware)
@@ -57,8 +57,8 @@ export const ConfigApi = HttpApi.make("config")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

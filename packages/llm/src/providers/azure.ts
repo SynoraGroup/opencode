@@ -9,16 +9,10 @@ import { withOpenAIOptions, type OpenAIProviderOptionsInput } from "./openai-opt
 export const id = ProviderID.make("azure")
 const routeAuth = Auth.remove("authorization")
 
-const normalizeAzureBaseURL = (baseURL: string) => baseURL.replace(/\/openai\/v1\/?$/i, "/openai")
-
-const isFoundryBaseURL = (baseURL: string | undefined) => {
-  if (!baseURL) return false
-  try {
-    return new URL(baseURL).hostname.toLowerCase().endsWith(".services.ai.azure.com")
-  } catch {
-    return false
-  }
-}
+// Azure v1 endpoints are rooted at `/openai/v1`; preserve that path and only
+// trim trailing slashes so route paths append cleanly for both Azure OpenAI and
+// Azure AI Foundry base URLs.
+const normalizeAzureBaseURL = (baseURL: string) => baseURL.replace(/\/+$/g, "")
 
 // Azure needs the customer's resource URL; supply either `resourceName`
 // (helper builds the URL) or `baseURL` directly.
@@ -102,7 +96,7 @@ export const configure = (input: Config) => {
   const configuredResponsesRoute = configuredRoute(responsesRoute, input)
   const configuredChatRoute = configuredRoute(chatRoute, input)
   const modelDefaults = defaults(input)
-  const useChatByDefault = input.useCompletionUrls === true || isFoundryBaseURL(input.baseURL)
+  const useChatByDefault = input.useCompletionUrls === true
 
   const responses = (modelID: string | ModelID) =>
     configuredResponsesRoute.with(withOpenAIOptions(modelID, modelDefaults)).model({ id: modelID })

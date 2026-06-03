@@ -192,7 +192,33 @@ describe("OpenAI Responses route", () => {
     }),
   )
 
-  it.effect("routes Azure AI Foundry model() calls to chat completions without duplicating /v1", () =>
+  it.effect("lowers prompt_cache_retention when configured", () =>
+    Effect.gen(function* () {
+      const prepared = yield* LLMClient.prepare<OpenAIResponses.OpenAIResponsesBody>(
+        LLM.request({
+          model: Azure.configure({
+            baseURL: "https://opencode-test.services.ai.azure.com/openai/v1/",
+            apiKey: "azure-key",
+          }).responses("gpt-5.4"),
+          prompt: "cache this",
+          providerOptions: {
+            openai: {
+              store: false,
+              promptCacheKey: "session_123",
+              promptCacheRetention: "24h",
+              include: ["reasoning.encrypted_content"],
+            },
+          },
+        }),
+      )
+
+      expect(prepared.body.prompt_cache_key).toBe("session_123")
+      expect(prepared.body.prompt_cache_retention).toBe("24h")
+      expect(prepared.body.include).toEqual(["reasoning.encrypted_content"])
+    }),
+  )
+
+  it.effect("keeps Azure AI Foundry model() on Responses unless chat is selected explicitly", () =>
     Effect.gen(function* () {
       yield* LLMClient.generate(
         LLM.updateRequest(request, {
@@ -206,10 +232,8 @@ describe("OpenAI Responses route", () => {
           dynamicResponse((input) =>
             Effect.gen(function* () {
               const web = yield* HttpClientRequest.toWeb(input.request).pipe(Effect.orDie)
-              expect(web.url).toBe(
-                "https://opencode-test.services.ai.azure.com/openai/v1/chat/completions?api-version=v1",
-              )
-              return input.respond(sseEvents(deltaChunk({}, "stop")), {
+              expect(web.url).toBe("https://opencode-test.services.ai.azure.com/openai/v1/responses?api-version=v1")
+              return input.respond(sseEvents({ type: "response.completed", response: {} }), {
                 headers: { "content-type": "text/event-stream" },
               })
             }),

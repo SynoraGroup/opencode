@@ -45,7 +45,7 @@ export const PermissionApi = HttpApi.make("permission")
       .annotateMerge(
         OpenApi.annotations({
           title: "permission",
-          description: "Experimental HttpApi permission routes.",
+          description: "Instance permission routes.",
         }),
       )
       .middleware(InstanceContextMiddleware)
@@ -54,8 +54,8 @@ export const PermissionApi = HttpApi.make("permission")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

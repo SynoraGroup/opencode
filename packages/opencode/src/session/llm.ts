@@ -26,6 +26,7 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
+import { SynoraProvider } from "@/provider/synora"
 
 const log = Log.create({ service: "llm" })
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
@@ -92,15 +93,12 @@ const live: Layer.Layer<
         providerID: input.model.providerID,
       })
 
-      const [language, cfg, item, info] = yield* Effect.all(
-        [
-          provider.getLanguage(input.model),
-          config.get(),
-          provider.getProvider(input.model.providerID),
-          auth.get(input.model.providerID),
-        ],
+      const forceNative = SynoraProvider.isSynoraProvider(input.model.providerID)
+      const [cfg, item, info] = yield* Effect.all(
+        [config.get(), provider.getProvider(input.model.providerID), auth.get(input.model.providerID)],
         { concurrency: "unbounded" },
       )
+      const language = forceNative ? undefined : yield* provider.getLanguage(input.model)
 
       const isWorkflow = language instanceof GitLabWorkflowLanguageModel
       const prepared = yield* LLMRequestPrep.prepare({
@@ -217,7 +215,7 @@ const live: Layer.Layer<
 
       // Runtime seam: native is an opt-in adapter over @opencode-ai/llm. It
       // either returns a ready LLMEvent stream or a concrete fallback reason.
-      if (flags.experimentalNativeLlm) {
+      if (forceNative || flags.experimentalNativeLlm) {
         const native = LLMNativeRuntime.stream({
           model: input.model,
           provider: item,
@@ -247,6 +245,9 @@ const live: Layer.Layer<
             stream: native.stream,
           }
         }
+        if (forceNative) {
+          return yield* Effect.fail(new Error(`Synora native runtime unavailable: ${native.reason}`))
+        }
         yield* Effect.logInfo("llm runtime selected").pipe(
           Effect.annotateLogs({
             "llm.runtime": "ai-sdk",
@@ -257,6 +258,8 @@ const live: Layer.Layer<
         )
         l.info("native runtime unavailable; falling back to ai-sdk", { reason: native.reason })
       }
+
+      if (!language) return yield* Effect.fail(new Error("AI SDK runtime requires a resolved language model"))
 
       yield* Effect.logInfo("llm runtime selected").pipe(
         Effect.annotateLogs({

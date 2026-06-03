@@ -4,15 +4,6 @@ import { ProviderV2 } from "../../provider"
 
 const normalizeAzureBaseURL = (baseURL: string) => baseURL.replace(/\/openai\/v1\/?$/i, "/openai")
 
-const isFoundryBaseURL = (baseURL: unknown) => {
-  if (typeof baseURL !== "string" || baseURL === "") return false
-  try {
-    return new URL(baseURL).hostname.toLowerCase().endsWith(".services.ai.azure.com")
-  } catch {
-    return false
-  }
-}
-
 function selectLanguage(sdk: any, modelID: string, useChat: boolean) {
   if (useChat && sdk.chat) return sdk.chat(modelID)
   if (sdk.responses) return sdk.responses(modelID)
@@ -58,12 +49,8 @@ export const AzurePlugin = PluginV2.define({
         evt.sdk = mod.createAzure(evt.options)
       }),
       "aisdk.language": Effect.fn(function* (evt) {
-        if (evt.model.providerID !== ProviderV2.ID.azure) return
-        evt.language = selectLanguage(
-          evt.sdk,
-          evt.model.apiID,
-          Boolean(evt.options.useCompletionUrls) || isFoundryBaseURL(evt.options.baseURL),
-        )
+        if (evt.model.endpoint.type !== "aisdk" || evt.model.endpoint.package !== "@ai-sdk/azure") return
+        evt.language = selectLanguage(evt.sdk, evt.model.apiID, Boolean(evt.options.useCompletionUrls))
       }),
     }
   }),

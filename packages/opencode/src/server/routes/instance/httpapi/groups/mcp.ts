@@ -140,7 +140,7 @@ export const McpApi = HttpApi.make("mcp")
       .annotateMerge(
         OpenApi.annotations({
           title: "mcp",
-          description: "Experimental HttpApi MCP routes.",
+          description: "Instance MCP routes.",
         }),
       )
       .middleware(InstanceContextMiddleware)
@@ -149,8 +149,8 @@ export const McpApi = HttpApi.make("mcp")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

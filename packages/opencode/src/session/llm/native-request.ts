@@ -9,6 +9,7 @@ import {
   OpenAICompatible,
   OpenRouter,
 } from "@opencode-ai/llm/providers"
+import type { AuthShape } from "@opencode-ai/llm/route"
 import type { ModelMessage } from "ai"
 import type { Provider } from "@/provider/provider"
 import { isRecord } from "@/util/record"
@@ -21,6 +22,7 @@ type ToolInput = {
 export type RequestInput = {
   readonly model: Provider.Model
   readonly apiKey?: string
+  readonly auth?: AuthShape
   readonly baseURL?: string
   readonly system?: readonly string[]
   readonly messages: readonly ModelMessage[]
@@ -150,31 +152,78 @@ const requireBaseURL = (model: Provider.Model, url: string | undefined) => {
   throw new Error(`Native LLM request adapter requires a base URL for ${model.providerID}/${model.id}`)
 }
 
+const stringRecord = (value: unknown): Record<string, string> | undefined => {
+  if (!isRecord(value)) return undefined
+  const result = Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  )
+  return Object.keys(result).length === 0 ? undefined : result
+}
+
 export const model = (input: Provider.Model | RequestInput, headers?: Record<string, string>) => {
   const model = "model" in input ? input.model : input
   const url = baseURL(input)
-  const options = {
-    ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
-    ...(url ? { baseURL: url } : {}),
+  const modelOptions = model.options
+  const shared = {
     headers: Object.keys({ ...model.headers, ...headers }).length === 0 ? undefined : { ...model.headers, ...headers },
     limits: {
       context: model.limit.context,
       output: model.limit.output,
     },
   }
-  if (model.api.npm === "@ai-sdk/openai") return OpenAI.configure(options).responses(model.api.id)
-  if (model.api.npm === "@ai-sdk/azure")
-    return Azure.configure({ ...options, baseURL: requireBaseURL(model, url) }).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/anthropic") return Anthropic.configure(options).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/google") return Google.configure(options).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/amazon-bedrock") return AmazonBedrock.configure(options).model(model.api.id)
+  if (model.api.npm === "@ai-sdk/openai")
+    return OpenAI.configure({
+      ...shared,
+      ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
+      ...(url ? { baseURL: url } : {}),
+    }).responses(model.api.id)
+  if (model.api.npm === "@ai-sdk/azure") {
+    const azureConfig = {
+      ...shared,
+      baseURL: requireBaseURL(model, url),
+      apiVersion: typeof modelOptions.apiVersion === "string" ? modelOptions.apiVersion : undefined,
+      queryParams: stringRecord(modelOptions.queryParams),
+      useCompletionUrls: modelOptions.useCompletionUrls === true,
+    }
+    const azure =
+      "model" in input && input.auth
+        ? Azure.configure({ ...azureConfig, auth: input.auth })
+        : Azure.configure({ ...azureConfig, ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}) })
+    if (modelOptions.useCompletionUrls === true) return azure.chat(model.api.id)
+    return azure.responses(model.api.id)
+  }
+  if (model.api.npm === "@ai-sdk/anthropic")
+    return Anthropic.configure({
+      ...shared,
+      ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
+      ...(url ? { baseURL: url } : {}),
+    }).model(model.api.id)
+  if (model.api.npm === "@ai-sdk/google")
+    return Google.configure({
+      ...shared,
+      ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
+      ...(url ? { baseURL: url } : {}),
+    }).model(model.api.id)
+  if (model.api.npm === "@ai-sdk/amazon-bedrock")
+    return AmazonBedrock.configure({
+      ...shared,
+      ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
+      ...(url ? { baseURL: url } : {}),
+      region: typeof modelOptions.region === "string" ? modelOptions.region : undefined,
+    }).model(model.api.id)
   if (model.api.npm === "@ai-sdk/openai-compatible")
     return OpenAICompatible.configure({
-      ...options,
+      ...shared,
+      ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
       provider: String(model.providerID),
       baseURL: requireBaseURL(model, url),
     }).model(model.api.id)
-  if (model.api.npm === "@openrouter/ai-sdk-provider") return OpenRouter.configure(options).model(model.api.id)
+  if (model.api.npm === "@openrouter/ai-sdk-provider")
+    return OpenRouter.configure({
+      ...shared,
+      ...("model" in input && input.apiKey ? { apiKey: input.apiKey } : {}),
+      ...(url ? { baseURL: url } : {}),
+    }).model(model.api.id)
   throw new Error(`Native LLM request adapter does not support provider package ${model.api.npm}`)
 }
 

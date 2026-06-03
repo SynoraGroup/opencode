@@ -6,16 +6,11 @@ import { PluginV2 } from "@opencode-ai/core/plugin"
 import { ProviderPlugins } from "@opencode-ai/core/plugin/provider"
 import { OpenRouterPlugin } from "@opencode-ai/core/plugin/provider/openrouter"
 import { ProviderV2 } from "@opencode-ai/core/provider"
-import { expectPluginRegistered, it, model, provider } from "./provider-helper"
+import { it, model, provider } from "./provider-helper"
 
 describe("OpenRouterPlugin", () => {
-  it.effect("is registered so legacy OpenRouter behavior can be applied", () =>
-    Effect.sync(() =>
-      expectPluginRegistered(
-        ProviderPlugins.map((item) => item.id),
-        "openrouter",
-      ),
-    ),
+  it.effect("is not part of the Synora default provider boot set", () =>
+    Effect.sync(() => expect(ProviderPlugins.map((item) => item.id)).not.toContain("openrouter")),
   )
 
   it.effect("applies legacy referer headers only to openrouter", () =>

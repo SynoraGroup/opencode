@@ -3838,3 +3838,56 @@ describe("ProviderTransform.providerOptions - ai-gateway-provider", () => {
     expect(result).toEqual({ openaiCompatible: { reasoningEffort: "high" } })
   })
 })
+
+describe("ProviderTransform.message - synora cache heuristics", () => {
+  test("injects Bedrock cache markers for Synora Bedrock messages", () => {
+    const model = {
+      id: ModelID.make("claude-sonnet-4.6"),
+      providerID: ProviderID.make("synora-bedrock"),
+      api: {
+        id: "eu.anthropic.claude-sonnet-4-6",
+        url: "",
+        npm: "@ai-sdk/amazon-bedrock",
+      },
+      name: "Claude Sonnet 4.6",
+      capabilities: {
+        temperature: false,
+        reasoning: true,
+        attachment: true,
+        toolcall: true,
+        input: { text: true, audio: false, image: true, video: false, pdf: false },
+        output: { text: true, audio: false, image: false, video: false, pdf: false },
+        interleaved: false,
+      },
+      cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+      limit: { context: 1_000_000, output: 64_000 },
+      status: "active",
+      options: { region: "eu-central-1" },
+      headers: {},
+      release_date: "2026-02-17",
+      variants: {},
+    } as any
+
+    const messages = ProviderTransform.message(
+      [
+        { role: "system", content: "System prefix" },
+        { role: "user", content: [{ type: "text", text: "Hello" }] },
+      ],
+      model,
+      {},
+    )
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        role: "system",
+        content: "System prefix",
+        providerOptions: expect.objectContaining({ bedrock: { cachePoint: { type: "default" } } }),
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+        providerOptions: expect.objectContaining({ bedrock: { cachePoint: { type: "default" } } }),
+      }),
+    ])
+  })
+})

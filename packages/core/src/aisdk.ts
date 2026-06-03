@@ -10,15 +10,6 @@ type SDK = any
 
 const normalizeAzureBaseURL = (baseURL: string) => baseURL.replace(/\/openai\/v1\/?$/i, "/openai")
 
-const isFoundryHost = (input: unknown) => {
-  if (typeof input !== "string" || input === "") return false
-  try {
-    return new URL(input).hostname.toLowerCase().endsWith(".services.ai.azure.com")
-  } catch {
-    return false
-  }
-}
-
 function wrapSSE(res: Response, ms: number, ctl: AbortController) {
   if (typeof ms !== "number" || ms <= 0) return res
   if (!res.body) return res
@@ -97,10 +88,6 @@ function prepareOptions(model: ModelV2.Info, pkg: string) {
         for (const item of body.input) {
           if ("id" in item) delete item.id
         }
-      }
-      if (pkg === "@ai-sdk/azure" && isFoundryHost(input.toString())) {
-        if ("prompt_cache_key" in body) delete body.prompt_cache_key
-        if ("promptCacheKey" in body) delete body.promptCacheKey
       }
       opts.body = JSON.stringify(body)
     }

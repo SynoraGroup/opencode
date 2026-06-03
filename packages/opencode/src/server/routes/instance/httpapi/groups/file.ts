@@ -114,7 +114,7 @@ export const FileApi = HttpApi.make("file")
       .annotateMerge(
         OpenApi.annotations({
           title: "file",
-          description: "Experimental HttpApi file routes.",
+          description: "Instance file routes.",
         }),
       )
       .middleware(InstanceContextMiddleware)
@@ -123,8 +123,8 @@ export const FileApi = HttpApi.make("file")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: "synora instance HttpApi",
       version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
+      description: "Private HttpApi surface for the local Synora instance.",
     }),
   )

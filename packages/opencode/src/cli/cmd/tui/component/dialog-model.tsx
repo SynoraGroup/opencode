@@ -149,7 +149,7 @@ export function DialogModel(props: { providerID?: string }) {
       actions={[
         {
           command: "model.dialog.provider",
-          title: connected() ? "Connect provider" : "View all providers",
+          title: "Connect Synora provider",
           onTrigger() {
             dialog.replace(() => <DialogProvider />)
           },

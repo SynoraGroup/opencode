@@ -87,6 +87,11 @@ function isOrphanedInterruptedTool(part: MessageV2.ToolPart) {
   return part.state.status === "error" && part.state.metadata?.interrupted === true
 }
 
+function needsToolFollowUp(parts: MessageV2.Part[]) {
+  const last = parts.findLast((part) => !["step-start", "step-finish", "patch"].includes(part.type))
+  return last?.type === "tool" && !last.metadata?.providerExecuted && !isOrphanedInterruptedTool(last)
+}
+
 export interface Interface {
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
   readonly prompt: (input: PromptInput) => Effect.Effect<MessageV2.WithParts, Image.Error>
@@ -711,11 +716,22 @@ export const layer = Layer.effect(
       const model = input.model ?? ag.model ?? (yield* currentModel(input.sessionID))
       const same = ag.model && model.providerID === ag.model.providerID && model.modelID === ag.model.modelID
       const full =
-        !input.variant && ag.variant && same
+        input.variant || (!input.variant && ag.variant && same)
           ? yield* provider
               .getModel(model.providerID, model.modelID)
               .pipe(Effect.catchIf(Provider.ModelNotFoundError.isInstance, () => Effect.succeed(undefined)))
           : undefined
+      if (input.variant && full && !full.variants?.[input.variant]) {
+        const available = Object.keys(full.variants ?? {})
+        const hint = available.length
+          ? ` Available variants: ${available.join(", ")}`
+          : " This model does not support variants."
+        const error = new NamedError.Unknown({
+          message: `Variant "${input.variant}" is not supported for model ${model.providerID}/${model.modelID}.${hint}`,
+        })
+        yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
+        throw error
+      }
       const variant = input.variant ?? (ag.variant && full?.variants?.[ag.variant] ? ag.variant : undefined)
 
       const info: MessageV2.User = {
@@ -1263,12 +1279,11 @@ export const layer = Layer.effect(
             (msg) => msg.info.role === "assistant" && msg.info.id === lastAssistant?.id,
           )
           // Some providers return "stop" even when the assistant message contains
-          // tool calls. Keep the loop running so tool results can be sent back to
-          // the model, but ignore cleanup-marked interrupted orphans.
-          const hasToolCalls =
-            lastAssistantMsg?.parts.some(
-              (part) => part.type === "tool" && !part.metadata?.providerExecuted && !isOrphanedInterruptedTool(part),
-            ) ?? false
+          // tool calls. Keep the loop running only when the latest substantive
+          // assistant content is still a local tool call, otherwise native
+          // multi-step runtimes would loop a second time after already sending
+          // tool results back to the model.
+          const hasToolCalls = lastAssistantMsg ? needsToolFollowUp(lastAssistantMsg.parts) : false
 
           if (
             lastAssistant?.finish &&

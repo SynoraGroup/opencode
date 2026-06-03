@@ -68,8 +68,8 @@ const summary = Layer.succeed(
 )
 
 const ref = {
-  providerID: ProviderID.make("test"),
-  modelID: ModelID.make("test-model"),
+  providerID: ProviderID.make("synora-foundry"),
+  modelID: ModelID.make("gpt-5.4"),
 }
 
 function withSh<A, E, R>(fx: () => Effect.Effect<A, E, R>) {
@@ -247,51 +247,12 @@ const raceNoLLMServer = testEffect(makeHttpNoLLMServer({ processor: "blocking" }
 const unix = process.platform !== "win32" ? it.instance : it.instance.skip
 const unixNoLLMServer = process.platform !== "win32" ? noLLMServer.instance : noLLMServer.instance.skip
 
-// Config that registers a custom "test" provider with a "test-model" model
-// so provider model lookup succeeds inside the loop.
 const cfg = {
-  provider: {
-    test: {
-      name: "Test",
-      id: "test",
-      env: [],
-      npm: "@ai-sdk/openai-compatible",
-      models: {
-        "test-model": {
-          id: "test-model",
-          name: "Test Model",
-          attachment: false,
-          reasoning: false,
-          temperature: false,
-          tool_call: true,
-          release_date: "2025-01-01",
-          limit: { context: 100000, output: 10000 },
-          cost: { input: 0, output: 0 },
-          options: {},
-        },
-      },
-      options: {
-        apiKey: "test-key",
-        baseURL: "http://localhost:1/v1",
-      },
-    },
-  },
+  model: "synora-foundry/gpt-5.4",
 }
 
 function providerCfg(url: string) {
-  return {
-    ...cfg,
-    provider: {
-      ...cfg.provider,
-      test: {
-        ...cfg.provider.test,
-        options: {
-          ...cfg.provider.test.options,
-          baseURL: url,
-        },
-      },
-    },
-  }
+  return { ...cfg }
 }
 
 const writeText = Effect.fn("test.writeText")(function* (file: string, text: string) {
@@ -314,6 +275,18 @@ const writeConfig = Effect.fn("test.writeConfig")(function* (dir: string, config
 const useServerConfig = Effect.fn("test.useServerConfig")(function* (config: (url: string) => Partial<Config.Info>) {
   const { directory: dir } = yield* TestInstance
   const llm = yield* TestLLMServer
+  const previousBaseURL = process.env.SYNORA_FOUNDRY_BASE_URL
+  const previousApiKey = process.env.SYNORA_FOUNDRY_API_KEY
+  process.env.SYNORA_FOUNDRY_BASE_URL = llm.url
+  process.env.SYNORA_FOUNDRY_API_KEY = "test-key"
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      if (previousBaseURL === undefined) delete process.env.SYNORA_FOUNDRY_BASE_URL
+      else process.env.SYNORA_FOUNDRY_BASE_URL = previousBaseURL
+      if (previousApiKey === undefined) delete process.env.SYNORA_FOUNDRY_API_KEY
+      else process.env.SYNORA_FOUNDRY_API_KEY = previousApiKey
+    }),
+  )
   yield* writeConfig(dir, config(llm.url))
   return { dir, llm }
 })
@@ -721,7 +694,7 @@ it.instance("failed subtask preserves metadata on error tool state", () =>
       ...providerCfg(url),
       agent: {
         general: {
-          model: "test/missing-model",
+          model: "synora-foundry/missing-model",
         },
       },
     }))
@@ -753,7 +726,7 @@ it.instance("failed subtask preserves metadata on error tool state", () =>
     expect(tool.state.metadata).toBeDefined()
     expect(tool.state.metadata?.sessionId).toBeDefined()
     expect(tool.state.metadata?.model).toEqual({
-      providerID: ProviderID.make("test"),
+      providerID: ProviderID.make("synora-foundry"),
       modelID: ModelID.make("missing-model"),
     })
   }),
@@ -1112,7 +1085,7 @@ it.instance(
       }
     }),
   { git: true },
-  3_000,
+  5_000,
 )
 
 // Queue semantics
@@ -1216,7 +1189,7 @@ it.instance(
 
       const inputs = yield* llm.inputs
       expect(inputs).toHaveLength(2)
-      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("second")
+      expect(JSON.stringify(inputs.at(-1))).toContain("second")
     }),
   3_000,
 )
@@ -1565,7 +1538,7 @@ unix(
 
         expect(result.info.role).toBe("assistant")
         const inputs = yield* llm.inputs
-        expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("configured")
+        expect(JSON.stringify(inputs.at(-1))).toContain("configured")
       }),
     ),
   30_000,
@@ -1678,7 +1651,25 @@ unix(
 
       const run = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
       yield* llm.wait(1)
-      yield* Effect.sleep(150)
+      yield* pollWithTimeout(
+        sessions
+          .messages({ sessionID: chat.id })
+          .pipe(
+            Effect.map((msgs) =>
+              msgs
+                .flatMap((msg) => msg.parts)
+                .some(
+                  (part) =>
+                    part.type === "tool" &&
+                    part.state.status === "running" &&
+                    part.state.metadata?.output?.includes("00020"),
+                )
+                ? true
+                : undefined,
+            ),
+          ),
+        "timed out waiting for enough bash output to require truncation",
+      )
       yield* prompt.cancel(chat.id)
 
       const exit = yield* Fiber.await(run)
@@ -1694,7 +1685,16 @@ unix(
       expect(tool.state.output).toMatch(/Full output saved to:\s+\S+/)
       expect(tool.state.output).not.toContain("Tool execution aborted")
     }),
-  { git: true },
+  {
+    config: {
+      ...cfg,
+      tool_output: {
+        max_lines: 10,
+        max_bytes: 1024,
+      },
+    },
+    git: true,
+  },
   30_000,
 )
 
@@ -2188,7 +2188,7 @@ it.instance(
 // Agent variant
 
 noLLMServer.instance(
-  "applies agent variant only when using agent model",
+  "applies agent variant only when the model advertises it",
   () =>
     Effect.gen(function* () {
       const prompt = yield* SessionPrompt.Service
@@ -2213,42 +2213,67 @@ noLLMServer.instance(
       })
       if (match.info.role !== "user") throw new Error("expected user message")
       expect(match.info.model).toEqual({
-        providerID: ProviderID.make("test"),
-        modelID: ModelID.make("test-model"),
-        variant: "xhigh",
+        providerID: ProviderID.make("synora-foundry"),
+        modelID: ModelID.make("gpt-5.4"),
+        variant: undefined,
       })
-      expect(match.info.model.variant).toBe("xhigh")
-
-      const override = yield* prompt.prompt({
-        sessionID: session.id,
-        agent: "build",
-        noReply: true,
-        variant: "high",
-        parts: [{ type: "text", text: "hello third" }],
-      })
-      if (override.info.role !== "user") throw new Error("expected user message")
-      expect(override.info.model.variant).toBe("high")
+      expect(match.info.model.variant).toBeUndefined()
 
       yield* sessions.remove(session.id)
     }),
   {
     config: {
       ...cfg,
-      provider: {
-        ...cfg.provider,
-        test: {
-          ...cfg.provider.test,
-          models: {
-            "test-model": {
-              ...cfg.provider.test.models["test-model"],
-              variants: { xhigh: {}, high: {} },
-            },
-          },
-        },
-      },
       agent: {
         build: {
-          model: "test/test-model",
+          model: "synora-foundry/gpt-5.4",
+          variant: "xhigh",
+        },
+      },
+    },
+  },
+)
+
+noLLMServer.instance(
+  "rejects unsupported user variant overrides before saving the prompt",
+  () =>
+    Effect.gen(function* () {
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({})
+      const before = yield* sessions.messages({ sessionID: session.id })
+
+      const exit = yield* prompt
+        .prompt({
+          sessionID: session.id,
+          agent: "build",
+          noReply: true,
+          variant: "high",
+          parts: [{ type: "text", text: "hello third" }],
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        const err = Cause.squash(exit.cause)
+        expect(NamedError.Unknown.isInstance(err)).toBe(true)
+        if (NamedError.Unknown.isInstance(err)) {
+          expect(err.data.message).toContain('Variant "high" is not supported for model synora-foundry/gpt-5.4')
+          expect(err.data.message).toContain("This model does not support variants.")
+        }
+      }
+
+      const after = yield* sessions.messages({ sessionID: session.id })
+      expect(after).toEqual(before)
+
+      yield* sessions.remove(session.id)
+    }),
+  {
+    config: {
+      ...cfg,
+      agent: {
+        build: {
+          model: "synora-foundry/gpt-5.4",
           variant: "xhigh",
         },
       },

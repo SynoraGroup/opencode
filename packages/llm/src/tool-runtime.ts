@@ -59,8 +59,9 @@ export const stepCountIs =
 /**
  * Run a model with typed tools. This helper owns tool orchestration, while the
  * caller supplies the actual model stream function. It can advertise schemas
- * only (`toolExecution: "none"`), execute one step, or continue model rounds
- * when `stopWhen` is provided.
+ * only (`toolExecution: "none"`), or keep running follow-up model rounds until
+ * the model stops emitting local tool calls. `stopWhen` lets callers cap that
+ * continuation explicitly.
  */
 export const stream = <T extends Tools>(options: StreamOptions<T>): Stream.Stream<LLMEvent, LLMError> => {
   const concurrency = options.concurrency ?? 10
@@ -121,8 +122,7 @@ export const stream = <T extends Tools>(options: StreamOptions<T>): Stream.Strea
               dispatched.flatMap(([call, result, error]) => emitEvents(call, result, error)),
             )
 
-            if (!options.stopWhen) return resultStream.pipe(Stream.concat(finishStream))
-            if (options.stopWhen({ step, request })) return resultStream.pipe(Stream.concat(finishStream))
+            if (options.stopWhen?.({ step, request })) return resultStream.pipe(Stream.concat(finishStream))
 
             return resultStream.pipe(
               Stream.concat(

@@ -5,16 +5,11 @@ import { PluginV2 } from "@opencode-ai/core/plugin"
 import { ProviderPlugins } from "@opencode-ai/core/plugin/provider"
 import { NvidiaPlugin } from "@opencode-ai/core/plugin/provider/nvidia"
 import { ProviderV2 } from "@opencode-ai/core/provider"
-import { expectPluginRegistered, it, provider } from "./provider-helper"
+import { it, provider } from "./provider-helper"
 
 describe("NvidiaPlugin", () => {
-  it.effect("is registered so legacy referer headers can be applied", () =>
-    Effect.sync(() =>
-      expectPluginRegistered(
-        ProviderPlugins.map((item) => item.id),
-        "nvidia",
-      ),
-    ),
+  it.effect("is not part of the Synora default provider boot set", () =>
+    Effect.sync(() => expect(ProviderPlugins.map((item) => item.id)).not.toContain("nvidia")),
   )
 
   it.effect("applies NVIDIA tracking headers only to nvidia", () =>

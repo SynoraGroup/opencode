@@ -30,6 +30,8 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Usage, type LLMEvent } from "@opencode-ai/llm"
 
 const DOOM_LOOP_THRESHOLD = 3
+const LARGE_ZERO_CACHE_INPUT_MIN = 40_000
+const LARGE_ZERO_CACHE_REPEAT_THRESHOLD = 2
 const log = Log.create({ service: "session.processor" })
 
 export type Result = "compact" | "stop" | "continue"
@@ -81,6 +83,24 @@ interface ProcessorContext extends Input {
 }
 
 type StreamEvent = LLMEvent
+
+function supportsCacheDiagnostics(model: Provider.Model) {
+  if (model.providerID === "synora-foundry") return model.options.useCompletionUrls !== true
+  if (model.providerID === "synora-bedrock") return model.api.npm === "@ai-sdk/amazon-bedrock"
+  return false
+}
+
+function isLargeZeroCacheStep(tokens: MessageV2.StepFinishPart["tokens"]) {
+  return tokens.input >= LARGE_ZERO_CACHE_INPUT_MIN && tokens.cache.read === 0 && tokens.cache.write === 0
+}
+
+export function repeatedLargeZeroCacheSteps(input: {
+  model: Provider.Model
+  steps: Array<Pick<MessageV2.StepFinishPart, "tokens">>
+}) {
+  if (!supportsCacheDiagnostics(input.model)) return 0
+  return input.steps.filter((step) => isLargeZeroCacheStep(step.tokens)).length
+}
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
 
@@ -301,6 +321,27 @@ export const layer = Layer.effect(
       }
 
       const toolInput = (value: unknown): Record<string, any> => (isRecord(value) ? value : { value })
+
+      const warnOnRepeatedLargeZeroCache = Effect.fn("SessionProcessor.warnOnRepeatedLargeZeroCache")(function* (
+        tokens: MessageV2.StepFinishPart["tokens"],
+      ) {
+        if (!supportsCacheDiagnostics(ctx.model) || !isLargeZeroCacheStep(tokens)) return
+        const recent = yield* session.messages({ sessionID: ctx.sessionID, limit: 8 })
+        const repeated = repeatedLargeZeroCacheSteps({
+          model: ctx.model,
+          steps: recent.flatMap((message) =>
+            message.parts.filter((part): part is MessageV2.StepFinishPart => part.type === "step-finish"),
+          ),
+        })
+        if (repeated < LARGE_ZERO_CACHE_REPEAT_THRESHOLD) return
+        log.warn("repeated zero-cache on large prompt", {
+          sessionID: ctx.sessionID,
+          providerID: ctx.model.providerID,
+          modelID: ctx.model.id,
+          repeated,
+          inputTokens: tokens.input,
+        })
+      })
 
       const handleEvent = Effect.fnUntraced(function* (value: StreamEvent) {
         switch (value.type) {
@@ -587,6 +628,7 @@ export const layer = Layer.effect(
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
+            yield* warnOnRepeatedLargeZeroCache(usage.tokens)
             if (ctx.snapshot) {
               const patch = yield* snapshot.patch(ctx.snapshot)
               if (patch.files.length) {

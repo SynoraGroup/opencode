@@ -19,8 +19,13 @@ export function ErrorComponent(props: {
     }
   })
   const [copied, setCopied] = createSignal(false)
-
-  const issueURL = new URL("https://github.com/anomalyco/opencode/issues/new?template=bug-report.yml")
+  const diagnostics = [
+    `synora-version: ${InstallationVersion}`,
+    props.error.message ? `message: ${props.error.message}` : undefined,
+    props.error.stack ? `stack:\n${props.error.stack}` : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n\n")
 
   // Choose safe fallback colors per mode since theme context may not be available
   const isLight = props.mode === "light"
@@ -31,21 +36,8 @@ export function ErrorComponent(props: {
     primary: isLight ? "#3b7dd8" : "#fab283",
   }
 
-  if (props.error.message) {
-    issueURL.searchParams.set("title", `opentui: fatal: ${props.error.message}`)
-  }
-
-  if (props.error.stack) {
-    issueURL.searchParams.set(
-      "description",
-      "```\n" + props.error.stack.substring(0, 6000 - issueURL.toString().length) + "...\n```",
-    )
-  }
-
-  issueURL.searchParams.set("opencode-version", InstallationVersion)
-
-  const copyIssueURL = () => {
-    void Clipboard.copy(issueURL.toString()).then(() => {
+  const copyDiagnostics = () => {
+    void Clipboard.copy(diagnostics).then(() => {
       setCopied(true)
     })
   }
@@ -54,11 +46,11 @@ export function ErrorComponent(props: {
     <box flexDirection="column" gap={1} backgroundColor={colors.bg}>
       <box flexDirection="row" gap={1} alignItems="center">
         <text attributes={TextAttributes.BOLD} fg={colors.text}>
-          Please report an issue.
+          Copy diagnostics for support.
         </text>
-        <box onMouseUp={copyIssueURL} backgroundColor={colors.primary} padding={1}>
+        <box onMouseUp={copyDiagnostics} backgroundColor={colors.primary} padding={1}>
           <text attributes={TextAttributes.BOLD} fg={colors.bg}>
-            Copy issue URL (exception info pre-filled)
+            Copy diagnostics
           </text>
         </box>
         {copied() && <text fg={colors.muted}>Successfully copied</text>}

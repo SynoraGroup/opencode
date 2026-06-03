@@ -8,11 +8,11 @@ import { Effect } from "effect"
 import * as Stream from "effect/Stream"
 import { FetchHttpClient } from "effect/unstable/http"
 import { tool as nativeTool, ToolFailure, type JsonSchema, type LLMEvent } from "@opencode-ai/llm"
-import type { LLMClientShape } from "@opencode-ai/llm/route"
+import { Auth as RouteAuth, type AuthShape, type LLMClientShape } from "@opencode-ai/llm/route"
 import { LLMNative } from "./native-request"
 
 export type RuntimeStatus =
-  | { readonly type: "supported"; readonly apiKey: string; readonly baseURL?: string }
+  | { readonly type: "supported"; readonly apiKey?: string; readonly baseURL?: string; readonly routeAuth?: AuthShape }
   | { readonly type: "unsupported"; readonly reason: string }
 export type StreamResult =
   | { readonly type: "supported"; readonly stream: Stream.Stream<LLMEvent, unknown> }
@@ -44,21 +44,38 @@ function statusWithFetch(
   fetch: typeof globalThis.fetch | undefined,
 ): RuntimeStatus {
   const providerID = input.model.providerID
-  if (providerID !== "openai" && providerID !== "anthropic" && !providerID.startsWith("opencode"))
-    return { type: "unsupported", reason: "provider is not openai, opencode, or anthropic" }
+  const isSynora = providerID === "synora-foundry" || providerID === "synora-bedrock"
+  if (providerID !== "openai" && providerID !== "anthropic" && !providerID.startsWith("opencode") && !isSynora)
+    return { type: "unsupported", reason: "provider is not openai, opencode, anthropic, or synora" }
   const npm = input.model.api.npm
-  if (npm !== "@ai-sdk/openai" && npm !== "@ai-sdk/openai-compatible" && npm !== "@ai-sdk/anthropic")
-    return { type: "unsupported", reason: "provider package is not OpenAI, OpenAI-compatible, or Anthropic" }
-  if (input.auth?.type === "oauth" && !(input.provider.id === "openai" && fetch)) {
+  if (
+    npm !== "@ai-sdk/openai" &&
+    npm !== "@ai-sdk/openai-compatible" &&
+    npm !== "@ai-sdk/anthropic" &&
+    npm !== "@ai-sdk/azure" &&
+    npm !== "@ai-sdk/amazon-bedrock"
+  )
+    return { type: "unsupported", reason: "provider package is not supported by native runtime" }
+  const routeAuth =
+    input.auth?.type !== "oauth"
+      ? undefined
+      : input.provider.id === "openai" && fetch
+        ? undefined
+        : input.provider.id === "synora-foundry" && npm === "@ai-sdk/azure"
+          ? RouteAuth.bearer(input.auth.access)
+          : undefined
+  if (input.auth?.type === "oauth" && !(input.provider.id === "openai" && fetch) && !routeAuth) {
     return { type: "unsupported", reason: "OAuth auth requires a provider fetch override" }
   }
 
   const apiKey = typeof input.provider.options.apiKey === "string" ? input.provider.options.apiKey : input.provider.key
-  if (!apiKey) return { type: "unsupported", reason: "API key is not configured" }
+  if (!apiKey && !routeAuth && npm !== "@ai-sdk/amazon-bedrock")
+    return { type: "unsupported", reason: "API key is not configured" }
 
   return {
     type: "supported",
-    apiKey,
+    ...(apiKey ? { apiKey } : {}),
+    ...(routeAuth ? { routeAuth } : {}),
     baseURL: typeof input.provider.options.baseURL === "string" ? input.provider.options.baseURL : undefined,
   }
 }
@@ -82,6 +99,7 @@ export function stream(input: StreamInput): StreamResult {
     request: LLMNative.request({
       model: input.model,
       apiKey: current.apiKey,
+      auth: current.routeAuth,
       baseURL: current.baseURL,
       messages: ProviderTransform.message(input.messages, input.model, input.providerOptions ?? {}),
       toolChoice: input.toolChoice,

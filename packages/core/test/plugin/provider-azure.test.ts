@@ -21,6 +21,13 @@ const itWithAccount = testEffect(
   ),
 )
 
+function azureModel(modelID: string, options?: Parameters<typeof model>[2]) {
+  return model("azure", modelID, {
+    endpoint: { type: "aisdk", package: "@ai-sdk/azure" },
+    ...options,
+  })
+}
+
 describe("AzurePlugin", () => {
   it.effect("resolves resourceName from env", () =>
     withEnv({ AZURE_RESOURCE_NAME: "from-env" }, () =>
@@ -159,7 +166,7 @@ describe("AzurePlugin", () => {
         const result = yield* plugin.trigger(
           "aisdk.sdk",
           {
-            model: model("azure", "deployment"),
+            model: azureModel("deployment"),
             package: "@ai-sdk/azure",
             options: { name: "azure", baseURL: "https://proxy.example.com/openai" },
           },
@@ -178,7 +185,7 @@ describe("AzurePlugin", () => {
         const exit = yield* plugin
           .trigger(
             "aisdk.sdk",
-            { model: model("azure", "deployment"), package: "@ai-sdk/azure", options: { name: "azure" } },
+            { model: azureModel("deployment"), package: "@ai-sdk/azure", options: { name: "azure" } },
             {},
           )
           .pipe(Effect.exit)
@@ -194,7 +201,7 @@ describe("AzurePlugin", () => {
       yield* plugin.add(AzurePlugin)
       yield* plugin.trigger(
         "aisdk.language",
-        { model: model("azure", "deployment"), sdk: fakeSelectorSdk(calls), options: { useCompletionUrls: true } },
+        { model: azureModel("deployment"), sdk: fakeSelectorSdk(calls), options: { useCompletionUrls: true } },
         {},
       )
       expect(calls).toEqual(["chat:deployment"])
@@ -208,7 +215,7 @@ describe("AzurePlugin", () => {
       yield* plugin.add(AzurePlugin)
       yield* plugin.trigger(
         "aisdk.language",
-        { model: model("azure", "deployment"), sdk: fakeSelectorSdk(calls), options: { useCompletionUrls: true } },
+        { model: azureModel("deployment"), sdk: fakeSelectorSdk(calls), options: { useCompletionUrls: true } },
         {},
       )
       expect(calls).toEqual(["chat:deployment"])
@@ -223,7 +230,7 @@ describe("AzurePlugin", () => {
       yield* plugin.trigger(
         "aisdk.language",
         {
-          model: model("azure", "deployment", {
+          model: azureModel("deployment", {
             options: { headers: {}, body: {}, aisdk: { provider: {}, request: { useCompletionUrls: true } } },
           }),
           sdk: fakeSelectorSdk(calls),
@@ -235,7 +242,7 @@ describe("AzurePlugin", () => {
     }),
   )
 
-  it.effect("auto-selects chat for azure ai foundry base URLs", () =>
+  it.effect("keeps responses default for azure ai foundry base URLs without explicit chat routing", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
@@ -243,13 +250,13 @@ describe("AzurePlugin", () => {
       yield* plugin.trigger(
         "aisdk.language",
         {
-          model: model("azure", "deployment"),
+          model: azureModel("deployment"),
           sdk: fakeSelectorSdk(calls),
           options: { baseURL: "https://example.services.ai.azure.com/openai/v1" },
         },
         {},
       )
-      expect(calls).toEqual(["chat:deployment"])
+      expect(calls).toEqual(["responses:deployment"])
     }),
   )
 
@@ -261,7 +268,7 @@ describe("AzurePlugin", () => {
       yield* plugin.trigger(
         "aisdk.language",
         {
-          model: model("azure", "deployment"),
+          model: azureModel("deployment"),
           sdk: fakeSelectorSdk(calls),
           options: { baseURL: "https://example.openai.azure.com/openai/v1" },
         },
@@ -278,7 +285,7 @@ describe("AzurePlugin", () => {
       yield* plugin.add(AzurePlugin)
       yield* plugin.trigger(
         "aisdk.language",
-        { model: model("azure", "deployment"), sdk: fakeSelectorSdk(calls), options: {} },
+        { model: azureModel("deployment"), sdk: fakeSelectorSdk(calls), options: {} },
         {},
       )
       const ignored = yield* plugin.trigger(
@@ -303,7 +310,7 @@ describe("AzurePlugin", () => {
       yield* plugin.trigger(
         "aisdk.language",
         {
-          model: model("azure", "messages-deployment"),
+          model: azureModel("messages-deployment"),
           sdk: { messages: make("messages"), chat: make("chat"), languageModel: make("languageModel") },
           options: {},
         },
@@ -311,7 +318,7 @@ describe("AzurePlugin", () => {
       )
       yield* plugin.trigger(
         "aisdk.language",
-        { model: model("azure", "language-deployment"), sdk: { languageModel: make("languageModel") }, options: {} },
+        { model: azureModel("language-deployment"), sdk: { languageModel: make("languageModel") }, options: {} },
         {},
       )
       expect(calls).toEqual(["messages:messages-deployment", "languageModel:language-deployment"])

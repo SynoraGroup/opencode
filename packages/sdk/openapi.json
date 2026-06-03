@@ -251,7 +251,7 @@
             }
           }
         },
-        "description": "Get health information about the OpenCode server.",
+        "description": "Get health information about the local Synora server.",
         "summary": "Get health",
         "x-codeSamples": [
           {
@@ -288,7 +288,7 @@
             }
           }
         },
-        "description": "Subscribe to global events from the OpenCode system using server-sent events.",
+        "description": "Subscribe to global events from the local Synora system using server-sent events.",
         "summary": "Get global events",
         "x-codeSamples": [
           {
@@ -325,7 +325,7 @@
             }
           }
         },
-        "description": "Retrieve the current global OpenCode configuration settings and preferences.",
+        "description": "Retrieve the current global Synora harness configuration settings and preferences.",
         "summary": "Get global configuration",
         "x-codeSamples": [
           {
@@ -367,7 +367,7 @@
             }
           }
         },
-        "description": "Update global OpenCode configuration settings and preferences.",
+        "description": "Update global Synora harness configuration settings and preferences.",
         "summary": "Update global configuration",
         "requestBody": {
           "content": {
@@ -414,7 +414,7 @@
             }
           }
         },
-        "description": "Clean up and dispose all OpenCode instances, releasing all resources.",
+        "description": "Clean up and dispose all local Synora instances, releasing all resources.",
         "summary": "Dispose instance",
         "x-codeSamples": [
           {
@@ -488,8 +488,8 @@
             }
           }
         },
-        "description": "Upgrade opencode to the specified version or latest if not specified.",
-        "summary": "Upgrade opencode",
+        "description": "Synora Code is detached from upstream opencode updates.",
+        "summary": "Update disabled",
         "requestBody": {
           "content": {
             "application/json": {
@@ -601,7 +601,7 @@
             }
           }
         },
-        "description": "Retrieve the current OpenCode configuration settings and preferences.",
+        "description": "Retrieve the current local Synora harness configuration settings and preferences.",
         "summary": "Get configuration",
         "x-codeSamples": [
           {
@@ -660,7 +660,7 @@
             }
           }
         },
-        "description": "Update OpenCode configuration settings and preferences.",
+        "description": "Update local Synora harness configuration settings and preferences.",
         "summary": "Update configuration",
         "requestBody": {
           "content": {
@@ -740,7 +740,7 @@
             }
           }
         },
-        "description": "Get a list of all configured AI providers and their default models.",
+        "description": "Get the approved Synora providers and their default models from the current configuration.",
         "summary": "List config providers",
         "x-codeSamples": [
           {
@@ -946,7 +946,7 @@
             }
           }
         },
-        "description": "Persist a new active Console account/org selection for the current local OpenCode state.",
+        "description": "Persist a new active Console account or org selection for the current local Synora state.",
         "summary": "Switch active Console org",
         "requestBody": {
           "content": {
@@ -1498,7 +1498,7 @@
             }
           }
         },
-        "description": "Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.",
+        "description": "Get a list of all local Synora sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.",
         "summary": "List sessions",
         "x-codeSamples": [
           {
@@ -2083,7 +2083,7 @@
             }
           }
         },
-        "description": "Clean up and dispose the current OpenCode instance, releasing all resources.",
+        "description": "Clean up and dispose the current local Synora instance, releasing all resources.",
         "summary": "Dispose instance",
         "x-codeSamples": [
           {
@@ -2137,7 +2137,7 @@
             }
           }
         },
-        "description": "Retrieve the current working directory and related path information for the OpenCode instance.",
+        "description": "Retrieve the current working directory and related path information for the local Synora instance.",
         "summary": "Get paths",
         "x-codeSamples": [
           {
@@ -2522,7 +2522,7 @@
             }
           }
         },
-        "description": "Get a list of all available commands in the OpenCode system.",
+        "description": "Get a list of all available commands in the local Synora harness.",
         "summary": "List commands",
         "x-codeSamples": [
           {
@@ -2580,7 +2580,7 @@
             }
           }
         },
-        "description": "Get a list of all available AI agents in the OpenCode system.",
+        "description": "Get a list of all available agents in the local Synora harness.",
         "summary": "List agents",
         "x-codeSamples": [
           {
@@ -2654,7 +2654,7 @@
             }
           }
         },
-        "description": "Get a list of all available skills in the OpenCode system.",
+        "description": "Get a list of all available skills in the local Synora harness.",
         "summary": "List skills",
         "x-codeSamples": [
           {
@@ -3462,7 +3462,7 @@
             }
           }
         },
-        "description": "Get a list of projects that have been opened with OpenCode.",
+        "description": "Get a list of projects that have been opened with the local Synora harness.",
         "summary": "List all projects",
         "x-codeSamples": [
           {
@@ -3516,7 +3516,7 @@
             }
           }
         },
-        "description": "Retrieve the currently active project that OpenCode is working with.",
+        "description": "Retrieve the project currently active in the local Synora harness.",
         "summary": "Get current project",
         "x-codeSamples": [
           {
@@ -3818,7 +3818,7 @@
             }
           }
         },
-        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.",
+        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by the local Synora instance.",
         "summary": "List PTY sessions",
         "x-codeSamples": [
           {
@@ -4734,7 +4734,7 @@
             }
           }
         },
-        "description": "Get a list of all available AI providers, including both available and connected ones.",
+        "description": "Get the approved Synora providers, including their current availability and connection state.",
         "summary": "List providers",
         "x-codeSamples": [
           {
@@ -4795,7 +4795,7 @@
             }
           }
         },
-        "description": "Retrieve available authentication methods for all AI providers.",
+        "description": "Retrieve the supported authentication methods for the approved Synora providers.",
         "summary": "Get provider auth methods",
         "x-codeSamples": [
           {
@@ -4864,7 +4864,7 @@
             }
           }
         },
-        "description": "Start the OAuth authorization flow for a provider.",
+        "description": "Start the OAuth authorization flow for a provider when that auth mode is enabled.",
         "summary": "Start OAuth authorization",
         "requestBody": {
           "content": {
@@ -4957,7 +4957,7 @@
             }
           }
         },
-        "description": "Handle the OAuth callback from a provider after user authorization.",
+        "description": "Handle the OAuth callback for a provider after authorization completes.",
         "summary": "Handle OAuth callback",
         "requestBody": {
           "content": {
@@ -5092,7 +5092,7 @@
             }
           }
         },
-        "description": "Get a list of all OpenCode sessions, sorted by most recently updated.",
+        "description": "Get a list of all local Synora sessions, sorted by most recently updated.",
         "summary": "List sessions",
         "x-codeSamples": [
           {
@@ -5151,7 +5151,7 @@
             }
           }
         },
-        "description": "Create a new OpenCode session for interacting with AI assistants and managing conversations.",
+        "description": "Create a new local Synora session for interacting with the approved coding models.",
         "summary": "Create session",
         "requestBody": {
           "content": {
@@ -5341,7 +5341,7 @@
             }
           }
         },
-        "description": "Retrieve detailed information about a specific OpenCode session.",
+        "description": "Retrieve detailed information about a specific local Synora session.",
         "summary": "Get session",
         "x-codeSamples": [
           {
@@ -6599,7 +6599,7 @@
             }
           }
         },
-        "description": "Create a shareable link for a session, allowing others to view the conversation.",
+        "description": "Session sharing is not part of the standard private Synora workflow.",
         "summary": "Share session",
         "x-codeSamples": [
           {
@@ -6680,7 +6680,7 @@
             }
           }
         },
-        "description": "Remove the shareable link for a session, making it private again.",
+        "description": "Session unshare is retained only for compatibility with existing session state.",
         "summary": "Unshare session",
         "x-codeSamples": [
           {
@@ -14028,18 +14028,6 @@
           },
           "autoshare": {
             "type": "boolean"
-          },
-          "autoupdate": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "string",
-                "enum": ["notify"]
-              }
-            ],
-            "description": "Automatically update to the latest version. Set to true to auto-update, false to disable, or 'notify' to show update notifications"
           },
           "disabled_providers": {
             "type": "array",
@@ -22152,31 +22140,31 @@
     },
     {
       "name": "config",
-      "description": "Experimental HttpApi config routes."
+      "description": "Instance configuration routes."
     },
     {
       "name": "experimental",
-      "description": "Experimental HttpApi read-only routes."
+      "description": "Experimental instance routes."
     },
     {
       "name": "file",
-      "description": "Experimental HttpApi file routes."
+      "description": "Instance file routes."
     },
     {
       "name": "instance",
-      "description": "Experimental HttpApi instance read routes."
+      "description": "Instance read routes."
     },
     {
       "name": "mcp",
-      "description": "Experimental HttpApi MCP routes."
+      "description": "Instance MCP routes."
     },
     {
       "name": "project",
-      "description": "Experimental HttpApi project routes."
+      "description": "Instance project routes."
     },
     {
       "name": "pty",
-      "description": "Experimental HttpApi PTY routes."
+      "description": "Instance PTY routes."
     },
     {
       "name": "question",
@@ -22184,19 +22172,19 @@
     },
     {
       "name": "permission",
-      "description": "Experimental HttpApi permission routes."
+      "description": "Instance permission routes."
     },
     {
       "name": "provider",
-      "description": "Experimental HttpApi provider routes."
+      "description": "Instance provider routes."
     },
     {
       "name": "session",
-      "description": "Experimental HttpApi session routes."
+      "description": "Instance session routes."
     },
     {
       "name": "sync",
-      "description": "Experimental HttpApi sync routes."
+      "description": "Instance sync routes."
     },
     {
       "name": "v2",
@@ -22216,11 +22204,11 @@
     },
     {
       "name": "tui",
-      "description": "Experimental HttpApi TUI routes."
+      "description": "Instance TUI routes."
     },
     {
       "name": "workspace",
-      "description": "Experimental HttpApi workspace routes."
+      "description": "Instance workspace routes."
     },
     {
       "name": "pty",

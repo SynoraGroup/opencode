@@ -5,16 +5,11 @@ import { PluginV2 } from "@opencode-ai/core/plugin"
 import { ProviderPlugins } from "@opencode-ai/core/plugin/provider"
 import { ZenmuxPlugin } from "@opencode-ai/core/plugin/provider/zenmux"
 import { ProviderV2 } from "@opencode-ai/core/provider"
-import { expectPluginRegistered, it, provider } from "./provider-helper"
+import { it, provider } from "./provider-helper"
 
 describe("ZenmuxPlugin", () => {
-  it.effect("is registered so legacy referer headers can be applied", () =>
-    Effect.sync(() =>
-      expectPluginRegistered(
-        ProviderPlugins.map((item) => item.id),
-        "zenmux",
-      ),
-    ),
+  it.effect("is not part of the Synora default provider boot set", () =>
+    Effect.sync(() => expect(ProviderPlugins.map((item) => item.id)).not.toContain("zenmux")),
   )
 
   it.effect("applies the exact legacy Zenmux headers", () =>

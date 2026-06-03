@@ -5,16 +5,11 @@ import { PluginV2 } from "@opencode-ai/core/plugin"
 import { ProviderPlugins } from "@opencode-ai/core/plugin/provider"
 import { LLMGatewayPlugin } from "@opencode-ai/core/plugin/provider/llmgateway"
 import { ProviderV2 } from "@opencode-ai/core/provider"
-import { expectPluginRegistered, it, provider } from "./provider-helper"
+import { it, provider } from "./provider-helper"
 
 describe("LLMGatewayPlugin", () => {
-  it.effect("is registered so legacy referer headers can be applied", () =>
-    Effect.sync(() =>
-      expectPluginRegistered(
-        ProviderPlugins.map((item) => item.id),
-        "llmgateway",
-      ),
-    ),
+  it.effect("is not part of the Synora default provider boot set", () =>
+    Effect.sync(() => expect(ProviderPlugins.map((item) => item.id)).not.toContain("llmgateway")),
   )
 
   it.effect("applies legacy referer headers only to enabled llmgateway", () =>
