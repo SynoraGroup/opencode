@@ -56,11 +56,12 @@ describe("OpenAI Chat route", () => {
         LLM.request({
           model: OpenAI.configure({ baseURL: "https://api.openai.test/v1/", apiKey: "test" }).chat("gpt-4o-mini"),
           prompt: "think",
-          providerOptions: { openai: { reasoningEffort: "low" } },
+          providerOptions: { openai: { promptCacheKey: "session-1", reasoningEffort: "low" } },
         }),
       )
 
       expect(prepared.body.store).toBe(false)
+      expect(prepared.body.prompt_cache_key).toBe("session-1")
       expect(prepared.body.reasoning_effort).toBe("low")
     }),
   )
@@ -81,6 +82,38 @@ describe("OpenAI Chat route", () => {
       expect(prepared.body.reasoning_effort).toBe("max")
       expect(prepared.body.thinking).toEqual({ type: "enabled" })
     }),
+  )
+
+  it.effect("maps DeepSeek-compatible cache hit usage", () =>
+    LLMClient.generate(
+      LLM.request({
+        model: OpenAI.configure({ baseURL: "https://api.openai.test/v1/", apiKey: "test" }).chat("deepseek-chat"),
+        prompt: "cache",
+      }),
+    ).pipe(
+      Effect.provide(
+        fixedResponse(
+          sseEvents(
+            {
+              choices: [{ delta: { content: "ok" } }],
+              usage: {
+                prompt_tokens: 100,
+                completion_tokens: 5,
+                total_tokens: 105,
+                prompt_cache_hit_tokens: 80,
+                prompt_cache_miss_tokens: 20,
+              },
+            },
+            deltaChunk({}, "stop"),
+          ),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+      ),
+      Effect.map((response) => {
+        expect(response.usage?.cacheReadInputTokens).toBe(80)
+        expect(response.usage?.nonCachedInputTokens).toBe(20)
+      }),
+    ),
   )
 
   it.effect("lowers prompt_cache_retention on Chat payloads when configured", () =>

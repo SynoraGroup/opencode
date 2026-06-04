@@ -80,6 +80,7 @@ export const bodyFields = {
   stream: Schema.Literal(true),
   stream_options: Schema.optional(Schema.Struct({ include_usage: Schema.Boolean })),
   store: Schema.optional(Schema.Boolean),
+  prompt_cache_key: Schema.optional(Schema.String),
   prompt_cache_retention: Schema.optional(OpenAIOptions.OpenAIPromptCacheRetention),
   reasoning_effort: Schema.optional(
     Schema.Literals(["none", "minimal", "low", "medium", "high", "xhigh", "max"] as const),
@@ -106,6 +107,8 @@ const OpenAIChatUsage = Schema.Struct({
   prompt_tokens: Schema.optional(Schema.Number),
   completion_tokens: Schema.optional(Schema.Number),
   total_tokens: Schema.optional(Schema.Number),
+  prompt_cache_hit_tokens: Schema.optional(Schema.Number),
+  prompt_cache_miss_tokens: Schema.optional(Schema.Number),
   prompt_tokens_details: optionalNull(
     Schema.Struct({
       cached_tokens: Schema.optional(Schema.Number),
@@ -260,6 +263,7 @@ const lowerMessages = Effect.fn("OpenAIChat.lowerMessages")(function* (request: 
 
 const lowerOptions = Effect.fn("OpenAIChat.lowerOptions")(function* (request: LLMRequest) {
   const store = OpenAIOptions.store(request)
+  const promptCacheKey = OpenAIOptions.promptCacheKey(request)
   const promptCacheRetention = OpenAIOptions.promptCacheRetention(request)
   const reasoningEffort = OpenAIOptions.reasoningEffort(request)
   const thinking = OpenAIOptions.thinking(request)
@@ -267,6 +271,7 @@ const lowerOptions = Effect.fn("OpenAIChat.lowerOptions")(function* (request: LL
     return yield* invalid(`OpenAI-compatible Chat does not support reasoning effort ${reasoningEffort}`)
   return {
     ...(store !== undefined ? { store } : {}),
+    ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
     ...(promptCacheRetention ? { prompt_cache_retention: promptCacheRetention } : {}),
     ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
     ...(thinking ? { thinking } : {}),
@@ -310,13 +315,14 @@ const mapFinishReason = (reason: string | null | undefined): FinishReason => {
 }
 
 // OpenAI Chat reports `prompt_tokens` (inclusive total) with a
-// `cached_tokens` subset, and `completion_tokens` (inclusive total) with
-// a `reasoning_tokens` subset. We pass the inclusive totals through and
+// `cached_tokens` subset. DeepSeek-compatible chat routes can instead
+// expose `prompt_cache_hit_tokens` at the usage root. `completion_tokens`
+// is inclusive and can contain a `reasoning_tokens` subset. We pass the inclusive totals through and
 // derive the non-cached breakdown so the `LLM.Usage` contract is
 // satisfied on both sides.
 const mapUsage = (usage: OpenAIChatEvent["usage"]): Usage | undefined => {
   if (!usage) return undefined
-  const cached = usage.prompt_tokens_details?.cached_tokens
+  const cached = usage.prompt_tokens_details?.cached_tokens ?? usage.prompt_cache_hit_tokens
   const reasoning = usage.completion_tokens_details?.reasoning_tokens
   const nonCached = ProviderShared.subtractTokens(usage.prompt_tokens, cached)
   return new Usage({

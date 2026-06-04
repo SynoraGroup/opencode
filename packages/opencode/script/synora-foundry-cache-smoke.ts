@@ -21,6 +21,7 @@ type Message = {
     readonly tokens?: Tokens
     readonly modelID?: string
     readonly providerID?: string
+    readonly error?: { readonly name: string; readonly data?: { readonly message?: string } }
   }
   readonly parts?: ReadonlyArray<{ readonly type: string; readonly tokens?: Tokens; readonly cost?: number }>
 }
@@ -116,6 +117,7 @@ try {
         cacheRead: tokens?.cache.read ?? 0,
         cacheWrite: tokens?.cache.write ?? 0,
         cost: assistant?.info.cost ?? 0,
+        error: assistant?.info.error?.data?.message ?? assistant?.info.error?.name,
       }
       turnResults.push(result)
       const actualInput = turnResults.reduce((sum, item) => sum + item.input + item.cacheRead + item.cacheWrite, 0)
@@ -130,13 +132,16 @@ try {
     const totalInput = turnResults.reduce((sum, turn) => sum + turn.input + turn.cacheRead + turn.cacheWrite, 0)
     const totalCacheRead = turnResults.reduce((sum, turn) => sum + turn.cacheRead, 0)
     const totalCacheWrite = turnResults.reduce((sum, turn) => sum + turn.cacheWrite, 0)
-    const verdict = model.expectedCacheFields
-      ? totalCacheRead > 0 || totalCacheWrite > 0
-        ? "pass"
-        : "fail-no-cache-accounting"
-      : totalCacheRead > 0 || totalCacheWrite > 0
-        ? "unexpected-cache-accounting"
-        : "unsupported-by-contract"
+    const hasError = turnResults.some((turn) => turn.error)
+    const verdict = hasError
+      ? "provider-error"
+      : model.expectedCacheFields
+        ? totalCacheRead > 0 || totalCacheWrite > 0
+          ? "pass"
+          : "fail-no-cache-accounting"
+        : totalCacheRead > 0 || totalCacheWrite > 0
+          ? "unexpected-cache-accounting"
+          : "unsupported-by-contract"
 
     results.push({
       model: model.modelID,
