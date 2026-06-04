@@ -200,13 +200,17 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     moveTo(next, true)
   }
 
+  function rowID(index: number) {
+    return "dialog-select-option-" + index
+  }
+
   function moveTo(next: number, center = false) {
     setStore("selected", next)
-    const option = selected()
+    const option = flat()[next]
     if (option) props.onMove?.(option)
     if (!scroll) return
     const target = scroll.getChildren().find((child: { id?: string }) => {
-      return child.id === JSON.stringify(selected()?.value)
+      return child.id === rowID(next)
     })
     if (!target) return
     const y = target.y - scroll.y
@@ -219,7 +223,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       }
       if (y < 0) {
         scroll.scrollBy(y)
-        if (isDeepEqual(flat()[0].value, selected()?.value)) {
+        if (store.selected === 0) {
           scroll.scrollTo(0)
         }
       }
@@ -426,11 +430,12 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 </Show>
                 <For each={options}>
                   {(option) => {
-                    const active = createMemo(() => isDeepEqual(option.value, selected()?.value))
+                    const optionIndex = createMemo(() => flat().indexOf(option))
+                    const active = createMemo(() => optionIndex() === store.selected)
                     const current = createMemo(() => isDeepEqual(option.value, props.current))
                     return (
                       <box
-                        id={JSON.stringify(option.value)}
+                        id={rowID(optionIndex())}
                         flexDirection="column"
                         position="relative"
                         onMouseMove={() => {
@@ -442,12 +447,12 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                         }}
                         onMouseOver={() => {
                           if (store.input !== "mouse") return
-                          const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
+                          const index = optionIndex()
                           if (index === -1) return
                           moveTo(index)
                         }}
                         onMouseDown={() => {
-                          const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
+                          const index = optionIndex()
                           if (index === -1) return
                           moveTo(index)
                         }}
