@@ -19,7 +19,7 @@ export const weatherToolName = "get_weather"
 
 // A deterministic system prompt long enough to clear every supported provider's
 // minimum cacheable-prefix threshold (Anthropic Haiku 3.5: 2048 tokens; Anthropic
-// Opus/Haiku 4.5: 4096 tokens; OpenAI/Gemini/Bedrock: lower). Built by repeating
+// Opus/Haiku 4.5: 4096 tokens; OpenAI/Bedrock: lower). Built by repeating
 // a fixed sentence — the cassette replays bit-for-bit, so the exact text matters
 // only when re-recording with `RECORD=true`.
 export const LARGE_CACHEABLE_SYSTEM = (() => {
@@ -279,8 +279,6 @@ const runTextScenario = (context: GoldenScenarioContext) =>
     assistant.expectText(/^Hello!?$/, {
       system: "You are concise.",
       maxTokens: context.maxTokens ?? 40,
-      providerOptions:
-        context.model.route.id === "gemini" ? { gemini: { thinkingConfig: { thinkingBudget: 0 } } } : undefined,
     }),
   ])
 

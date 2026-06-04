@@ -20,13 +20,6 @@ export const nativeOpenAIResponsesContinuation = [
   ...mediaContinuation,
 ] as const satisfies ReadonlyArray<ContinuationFeature>
 
-export const nativeAnthropicMessagesContinuation = [
-  ...basicContinuation,
-  ...toolContinuation,
-  "assistant-reasoning",
-  ...mediaContinuation,
-] as const satisfies ReadonlyArray<ContinuationFeature>
-
 export const continuationTool = ToolDefinition.make({
   name: "get_weather",
   description: "Get current weather for a city.",

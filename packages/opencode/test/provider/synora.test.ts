@@ -26,6 +26,59 @@ describe("Synora provider contract", () => {
     expect(Object.keys(providers[bedrockID].models).sort()).toEqual(["claude-opus-4.6", "claude-sonnet-4.6"])
   })
 
+  test("publishes nonzero pricing, cache costs, limits, and modality metadata", () => {
+    const providers = SynoraProvider.providers({ envs: {}, auths: {} })
+    const foundry = providers[foundryID]
+    const bedrock = providers[bedrockID]
+
+    expect(foundry.models["gpt-5.4"].cost).toMatchObject({
+      input: 2.5,
+      output: 15,
+      cache: { read: 0.25, write: 0 },
+    })
+    expect(foundry.models["gpt-5.4"].cost.tiers?.[0]).toMatchObject({
+      input: 5,
+      output: 22.5,
+      cache: { read: 0.5, write: 0 },
+      tier: { type: "context", size: 272_000 },
+    })
+    expect(foundry.models["gpt-5.4"].limit).toEqual({ context: 1_050_000, input: 922_000, output: 128_000 })
+    expect(foundry.models["gpt-5.4"].capabilities.input.pdf).toBe(true)
+
+    expect(foundry.models["DeepSeek-V4-Pro"].cost).toMatchObject({
+      input: 1.74,
+      output: 3.48,
+      cache: { read: 0.145, write: 0 },
+    })
+    expect(foundry.models["DeepSeek-V4-Pro"].limit.output).toBe(384_000)
+    expect(foundry.models["DeepSeek-V4-Pro"].capabilities.temperature).toBe(true)
+
+    expect(foundry.models["Kimi-K2.6"].cost).toMatchObject({
+      input: 0.95,
+      output: 4,
+      cache: { read: 0.16, write: 0 },
+    })
+    expect(foundry.models["Kimi-K2.6"].limit.output).toBe(262_144)
+    expect(foundry.models["Kimi-K2.6"].capabilities.input.video).toBe(true)
+
+    expect(bedrock.models["claude-opus-4.6"].cost).toMatchObject({
+      input: 5,
+      output: 25,
+      cache: { read: 0.5, write: 6.25 },
+    })
+    expect(bedrock.models["claude-opus-4.6"].cost.tiers?.[0]).toMatchObject({
+      input: 10,
+      output: 37.5,
+      cache: { read: 1, write: 12.5 },
+      tier: { type: "context", size: 200_000 },
+    })
+    expect(bedrock.models["claude-sonnet-4.6"].cost).toMatchObject({
+      input: 3,
+      output: 15,
+      cache: { read: 0.3, write: 3.75 },
+    })
+  })
+
   test("routes Foundry GPT deployments to Responses and partner deployments to chat completions", () => {
     const foundry = SynoraProvider.providers({ envs: {}, auths: {} })[foundryID]
 
@@ -105,5 +158,36 @@ describe("Synora provider contract", () => {
       cache: { kind: "official-doc", detail: "azure-openai-prompt-caching" },
       limits: { kind: "deployment-default", detail: "nps-foundry default base url" },
     })
+  })
+
+  test("rejects unapproved model IDs", () => {
+    const providers = SynoraProvider.providers({ envs: {}, auths: {} })
+
+    expect(SynoraProvider.contract({ providerID: foundryID, id: "claude-opus-4.7" })).toBeUndefined()
+    expect(SynoraProvider.contract({ providerID: bedrockID, id: "claude-sonnet-4-7" })).toBeUndefined()
+    expect(SynoraProvider.contract({ providerID: foundryID, id: "unknown-model" })).toBeUndefined()
+    expect(SynoraProvider.contract({ providerID: bedrockID, id: "unknown-model" })).toBeUndefined()
+  })
+
+  test("rejects right model on wrong provider", () => {
+    expect(SynoraProvider.contract({ providerID: foundryID, id: "claude-sonnet-4.6" })).toBeUndefined()
+    expect(SynoraProvider.contract({ providerID: bedrockID, id: "gpt-5.4" })).toBeUndefined()
+  })
+
+  test("smallOptions preserves store:false and encrypted reasoning for Foundry GPT", () => {
+    const foundry = SynoraProvider.providers({ envs: {}, auths: {} })[foundryID]
+
+    const opts = SynoraProvider.smallOptions({ model: foundry.models["gpt-5.4"] })
+    expect(opts).toEqual({
+      store: false,
+      include: ["reasoning.encrypted_content"],
+    })
+  })
+
+  test("smallOptions returns empty for Foundry chat models and Bedrock models", () => {
+    const providers = SynoraProvider.providers({ envs: {}, auths: {} })
+
+    expect(SynoraProvider.smallOptions({ model: providers[foundryID].models["DeepSeek-V4-Pro"] })).toEqual({})
+    expect(SynoraProvider.smallOptions({ model: providers[bedrockID].models["claude-sonnet-4.6"] })).toEqual({})
   })
 })

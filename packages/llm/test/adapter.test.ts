@@ -75,13 +75,13 @@ const fake = Route.make({
 })
 const configuredFake = fake.with({ endpoint: { baseURL: "https://fake.local" } })
 
-const gemini = Route.make({
-  id: "gemini-fake",
+const alternate = Route.make({
+  id: "alternate-fake",
   protocol: fakeProtocol,
   endpoint: Endpoint.path("/chat"),
   framing: fakeFraming,
 })
-const configuredGemini = gemini.with({ endpoint: { baseURL: "https://fake.local" } })
+const configuredAlternate = alternate.with({ endpoint: { baseURL: "https://fake.local" } })
 
 const request = LLM.request({
   id: "req_1",
@@ -122,10 +122,10 @@ describe("llm route", () => {
     Effect.gen(function* () {
       const llm = yield* LLMClient.Service
       const prepared = yield* llm.prepare(
-        LLM.updateRequest(request, { model: updateModel(request.model, { route: configuredGemini }) }),
+        LLM.updateRequest(request, { model: updateModel(request.model, { route: configuredAlternate }) }),
       )
 
-      expect(prepared.route).toBe("gemini-fake")
+      expect(prepared.route).toBe("alternate-fake")
     }),
   )
 

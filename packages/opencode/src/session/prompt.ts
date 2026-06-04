@@ -11,6 +11,7 @@ import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
+import { SessionGovernor } from "./governor"
 import { Bus } from "../bus"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
@@ -1456,6 +1457,17 @@ export const layer = Layer.effect(
             const system = [...env, ...instructions, ...(skills ? [skills] : [])]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+
+            if (SessionGovernor.wouldOverflow({
+              cfg: yield* config.get(),
+              model,
+              estimatedTokens: SessionGovernor.estimateTokens(msgs),
+              cachePrefixTokens: SessionGovernor.cachePrefixTokens(msgs, model),
+            })) {
+              yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
+              return "continue" as const
+            }
+
             const result = yield* handle.process({
               user: lastUser,
               agent,

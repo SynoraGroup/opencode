@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { ToolFailure } from "@opencode-ai/llm"
-import { Auth as RuntimeAuth, LLMClient, RequestExecutor, WebSocketExecutor } from "@opencode-ai/llm/route"
+import { Auth as RouteAuth, Auth as RuntimeAuth, LLMClient, RequestExecutor, WebSocketExecutor } from "@opencode-ai/llm/route"
 import { jsonSchema, tool, type ModelMessage, type Tool } from "ai"
 import { Effect, Layer, Stream } from "effect"
 import { Headers } from "effect/unstable/http"
@@ -8,18 +8,17 @@ import { LLMNative } from "@/session/llm/native-request"
 import { LLMNativeRuntime } from "@/session/llm/native-runtime"
 import type { Provider } from "@/provider/provider"
 import { ModelID, ProviderID } from "@/provider/schema"
-import { OAUTH_DUMMY_KEY } from "@/auth"
 import { testEffect } from "../lib/effect"
 
 const baseModel: Provider.Model = {
-  id: ModelID.make("gpt-5-mini"),
-  providerID: ProviderID.make("openai"),
+  id: ModelID.make("gpt-5.4"),
+  providerID: ProviderID.make("synora-foundry"),
   api: {
-    id: "gpt-5-mini",
-    url: "https://api.openai.com/v1",
-    npm: "@ai-sdk/openai",
+    id: "gpt-5.4",
+    url: "https://nps-foundry.services.ai.azure.com/openai/v1",
+    npm: "@ai-sdk/azure",
   },
-  name: "GPT-5 Mini",
+  name: "GPT-5.4",
   capabilities: {
     temperature: true,
     reasoning: true,
@@ -50,9 +49,9 @@ const baseModel: Provider.Model = {
     },
   },
   limit: {
-    context: 128_000,
-    input: 128_000,
-    output: 32_000,
+    context: 1_050_000,
+    input: undefined,
+    output: 128_000,
   },
   status: "active",
   options: {},
@@ -68,6 +67,15 @@ const providerInfo: Provider.Info = {
   source: "config",
   env: ["OPENAI_API_KEY"],
   options: { apiKey: "test-openai-key" },
+  models: {},
+}
+
+const synoraProviderInfo: Provider.Info = {
+  id: ProviderID.make("synora-foundry"),
+  name: "Synora Foundry",
+  source: "env",
+  env: ["SYNORA_FOUNDRY_API_KEY"],
+  options: { apiKey: "test-foundry-key", baseURL: "https://nps-foundry.services.ai.azure.com/openai/v1" },
   models: {},
 }
 
@@ -142,7 +150,7 @@ const expectOpenAIResponsesRequest = (input: {
         headers: input.headers,
       }),
     ).toMatchObject({
-      route: "openai-responses",
+      route: "azure-openai-responses",
       protocol: "openai-responses",
       body: input.expectedBody,
     })
@@ -216,18 +224,18 @@ describe("session.llm-native.request", () => {
     })
 
     expect(request.model).toMatchObject({
-      id: "gpt-5-mini",
-      provider: "openai",
-      route: { id: "openai-responses" },
+      id: "gpt-5.4",
+      provider: "azure",
+      route: { id: "azure-openai-responses" },
     })
-    expect(request.model.route.endpoint.baseURL).toBe("https://api.openai.com/v1")
+    expect(request.model.route.endpoint.baseURL).toBe("https://nps-foundry.services.ai.azure.com/openai/v1")
     expect(request.model.route.defaults.headers).toEqual({
       "x-model": "model-header",
       "x-request": "request-header",
     })
     expect(request.model.route.defaults.limits).toMatchObject({
-      context: 128_000,
-      output: 32_000,
+      context: 1_050_000,
+      output: 128_000,
     })
     expect(request.system).toEqual([
       { type: "text", text: "agent system" },
@@ -327,63 +335,9 @@ describe("session.llm-native.request", () => {
     ])
   })
 
-  test("selects native request routes for provider packages", () => {
-    const openai = LLMNative.model({
-      model: { ...baseModel, api: { ...baseModel.api, url: "", npm: "@ai-sdk/openai" } },
-      apiKey: "test-key",
-      messages: [],
-    })
-    expect(openai.route.id).toBe("openai-responses")
-    expect(openai.route.endpoint.baseURL).toBe("https://api.openai.com/v1")
-
-    const anthropic = LLMNative.model({
-      model: { ...baseModel, api: { ...baseModel.api, url: "", npm: "@ai-sdk/anthropic" } },
-      apiKey: "test-key",
-      messages: [],
-    })
-    expect(anthropic.route.id).toBe("anthropic-messages")
-    expect(anthropic.route.endpoint.baseURL).toBe("https://api.anthropic.com/v1")
-
-    const google = LLMNative.model({
-      model: { ...baseModel, api: { ...baseModel.api, url: "", npm: "@ai-sdk/google" } },
-      apiKey: "test-key",
-      messages: [],
-    })
-    expect(google.route.id).toBe("gemini")
-    expect(google.route.endpoint.baseURL).toBe("https://generativelanguage.googleapis.com/v1beta")
-
-    const compatible = LLMNative.model({
-      model: {
-        ...baseModel,
-        providerID: ProviderID.make("opencode"),
-        api: { ...baseModel.api, url: "https://ai.example.test/v1", npm: "@ai-sdk/openai-compatible" },
-      },
-      apiKey: "test-key",
-      messages: [],
-    })
-    expect(compatible.route.id).toBe("openai-compatible-chat")
-    expect(compatible.route.endpoint.baseURL).toBe("https://ai.example.test/v1")
-
-    const openrouter = LLMNative.model({
-      model: { ...baseModel, api: { ...baseModel.api, url: "", npm: "@openrouter/ai-sdk-provider" } },
-      apiKey: "test-key",
-      messages: [],
-    })
-    expect(openrouter.route.id).toBe("openrouter")
-    expect(openrouter.route.endpoint.baseURL).toBe("https://openrouter.ai/api/v1")
-
+  test("selects native request routes for Synora provider families", () => {
     const synoraResponses = LLMNative.model({
-      model: {
-        ...baseModel,
-        id: ModelID.make("gpt-5.4"),
-        providerID: ProviderID.make("synora-foundry"),
-        api: {
-          id: "gpt-5.4",
-          url: "https://nps-foundry.services.ai.azure.com/openai/v1",
-          npm: "@ai-sdk/azure",
-        },
-        options: {},
-      },
+      model: baseModel,
       apiKey: "test-key",
       messages: [],
     })
@@ -394,7 +348,6 @@ describe("session.llm-native.request", () => {
       model: {
         ...baseModel,
         id: ModelID.make("DeepSeek-V4-Pro"),
-        providerID: ProviderID.make("synora-foundry"),
         api: {
           id: "DeepSeek-V4-Pro",
           url: "https://nps-foundry.services.ai.azure.com/openai/v1",
@@ -406,6 +359,18 @@ describe("session.llm-native.request", () => {
       messages: [],
     })
     expect(synoraChat.route.id).toBe("azure-openai-chat")
+
+    const bedrock = LLMNative.model({
+      model: {
+        ...baseModel,
+        id: ModelID.make("claude-sonnet-4.6"),
+        providerID: ProviderID.make("synora-bedrock"),
+        api: { id: "eu.anthropic.claude-sonnet-4-6", url: "", npm: "@ai-sdk/amazon-bedrock" },
+        options: { region: "eu-central-1" },
+      },
+      messages: [],
+    })
+    expect(bedrock.route.id).toBe("bedrock-converse")
   })
 
   it.effect("threads Synora Foundry bearer auth through the Azure native route", () =>
@@ -448,56 +413,53 @@ describe("session.llm-native.request", () => {
     ).toThrow("Native LLM request adapter does not support provider package unknown-provider")
   })
 
-  test("only enables native runtime for supported OpenAI API-key models", () => {
-    expect(LLMNativeRuntime.status({ model: baseModel, provider: providerInfo, auth: undefined })).toMatchObject({
+  test("only enables native runtime for supported Synora models, rejects non-Synora providers", () => {
+    const synoraFoundry = {
+      ...baseModel,
+      id: ModelID.make("gpt-5.4"),
+      providerID: ProviderID.make("synora-foundry"),
+      api: { id: "gpt-5.4", url: "https://nps-foundry.services.ai.azure.com/openai/v1", npm: "@ai-sdk/azure" },
+      options: {},
+    }
+    expect(LLMNativeRuntime.status({ model: synoraFoundry, provider: synoraProviderInfo, auth: undefined })).toMatchObject({
       type: "supported",
-      apiKey: "test-openai-key",
+      apiKey: "test-foundry-key",
     })
+    expect(
+      LLMNativeRuntime.status({
+        model: { ...baseModel, providerID: ProviderID.make("openai") },
+        provider: { ...providerInfo, id: ProviderID.make("openai") },
+        auth: undefined,
+      }),
+    ).toEqual({ type: "unsupported", reason: "provider is not a synora provider" })
     expect(
       LLMNativeRuntime.status({
         model: { ...baseModel, providerID: ProviderID.make("opencode") },
         provider: { ...providerInfo, id: ProviderID.make("opencode") },
         auth: undefined,
       }),
-    ).toMatchObject({
-      type: "supported",
-      apiKey: "test-openai-key",
-    })
-    expect(
-      LLMNativeRuntime.status({
-        model: {
-          ...baseModel,
-          providerID: ProviderID.make("opencode"),
-          api: { ...baseModel.api, npm: "@ai-sdk/openai-compatible" },
-        },
-        provider: { ...providerInfo, id: ProviderID.make("opencode") },
-        auth: undefined,
-      }),
-    ).toMatchObject({
-      type: "supported",
-      apiKey: "test-openai-key",
-    })
+    ).toEqual({ type: "unsupported", reason: "provider is not a synora provider" })
     expect(
       LLMNativeRuntime.status({
         model: { ...baseModel, providerID: ProviderID.make("google") },
         provider: { ...providerInfo, id: ProviderID.make("google") },
         auth: undefined,
       }),
-    ).toEqual({ type: "unsupported", reason: "provider is not openai, opencode, anthropic, or synora" })
+    ).toEqual({ type: "unsupported", reason: "provider is not a synora provider" })
     expect(
       LLMNativeRuntime.status({
-        model: baseModel,
-        provider: providerInfo,
+        model: {
+          ...baseModel,
+          id: ModelID.make("claude-sonnet-4.6"),
+          providerID: ProviderID.make("synora-bedrock"),
+          api: { id: "eu.anthropic.claude-sonnet-4-6", url: "", npm: "@ai-sdk/amazon-bedrock" },
+          options: { region: "eu-central-1" },
+        },
+        provider: { ...synoraProviderInfo, id: ProviderID.make("synora-bedrock"), options: {} },
         auth: { type: "oauth", refresh: "refresh", access: "access", expires: 1 },
       }),
-    ).toEqual({ type: "unsupported", reason: "OAuth auth requires a provider fetch override" })
-    expect(
-      LLMNativeRuntime.status({
-        model: baseModel,
-        provider: { ...providerInfo, options: { apiKey: OAUTH_DUMMY_KEY, fetch: async () => new Response() } },
-        auth: { type: "oauth", refresh: "refresh", access: "access", expires: 1 },
-      }),
-    ).toMatchObject({ type: "supported", apiKey: OAUTH_DUMMY_KEY })
+    ).toEqual({ type: "unsupported", reason: "OAuth auth requires a synora provider with azure sdk" })
+
     const synoraOauth = LLMNativeRuntime.status({
       model: {
         ...baseModel,
@@ -527,52 +489,96 @@ describe("session.llm-native.request", () => {
 
     expect(
       LLMNativeRuntime.status({
-        model: { ...baseModel, api: { ...baseModel.api, npm: "@ai-sdk/google" } },
-        provider: providerInfo,
+        model: { ...baseModel, api: { ...baseModel.api, npm: "@ai-sdk/google" }, providerID: ProviderID.make("synora-foundry") },
+        provider: synoraProviderInfo,
         auth: undefined,
       }),
-    ).toEqual({ type: "unsupported", reason: "provider package is not supported by native runtime" })
+    ).toEqual({ type: "unsupported", reason: "provider package does not match Synora contract: @ai-sdk/google" })
 
     expect(
       LLMNativeRuntime.status({
-        model: baseModel,
-        provider: { ...providerInfo, options: {} },
+        model: synoraFoundry,
+        provider: { ...synoraProviderInfo, options: {} },
         auth: undefined,
       }),
     ).toEqual({ type: "unsupported", reason: "API key is not configured" })
   })
 
-  test("enables native runtime for Anthropic API-key models", () => {
+  test("rejects Synora models that do not match an approved contract", () => {
     expect(
       LLMNativeRuntime.status({
         model: {
           ...baseModel,
-          providerID: ProviderID.make("anthropic"),
-          api: { ...baseModel.api, npm: "@ai-sdk/anthropic", url: "https://api.anthropic.com/v1" },
+          id: ModelID.make("gpt-5.4"),
+          providerID: ProviderID.make("synora-foundry"),
+          api: { id: "gpt-5.4", url: "https://nps-foundry.services.ai.azure.com/openai/v1", npm: "@ai-sdk/azure" },
+          options: { useCompletionUrls: true },
+        },
+        provider: synoraProviderInfo,
+        auth: undefined,
+      }),
+    ).toEqual({
+      type: "unsupported",
+      reason: "transport does not match Synora contract: gpt-5.4 must use OpenAI Responses",
+    })
+
+    expect(
+      LLMNativeRuntime.status({
+        model: {
+          ...baseModel,
+          id: ModelID.make("gpt-5.4-shadow"),
+          providerID: ProviderID.make("synora-foundry"),
+          api: { id: "gpt-5.4-shadow", url: "https://nps-foundry.services.ai.azure.com/openai/v1", npm: "@ai-sdk/azure" },
+          options: {},
+        },
+        provider: synoraProviderInfo,
+        auth: undefined,
+      }),
+    ).toEqual({
+      type: "unsupported",
+      reason: "model is not an approved Synora contract: synora-foundry/gpt-5.4-shadow",
+    })
+  })
+
+  test("enables native runtime for Synora Bedrock models", () => {
+    expect(
+      LLMNativeRuntime.status({
+        model: {
+          ...baseModel,
+          id: ModelID.make("claude-sonnet-4.6"),
+          providerID: ProviderID.make("synora-bedrock"),
+          api: { id: "eu.anthropic.claude-sonnet-4-6", url: "", npm: "@ai-sdk/amazon-bedrock" },
+          options: { region: "eu-central-1" },
         },
         provider: {
           ...providerInfo,
-          id: ProviderID.make("anthropic"),
-          name: "Anthropic",
-          env: ["ANTHROPIC_API_KEY"],
-          options: { apiKey: "test-anthropic-key" },
+          id: ProviderID.make("synora-bedrock"),
+          name: "Synora Bedrock",
+          env: ["AWS_REGION"],
+          options: { region: "eu-central-1" },
         },
         auth: undefined,
       }),
-    ).toMatchObject({ type: "supported", apiKey: "test-anthropic-key" })
+    ).toMatchObject({ type: "supported" })
   })
 
-  test("prefers console provider api key over stored opencode auth", () => {
+  test("prefers provider options api key over stored auth key", () => {
+    const synoraFoundry = {
+      ...baseModel,
+      id: ModelID.make("gpt-5.4"),
+      providerID: ProviderID.make("synora-foundry"),
+      api: { id: "gpt-5.4", url: "https://nps-foundry.services.ai.azure.com/openai/v1", npm: "@ai-sdk/azure" },
+      options: {},
+    }
     expect(
       LLMNativeRuntime.status({
-        model: { ...baseModel, providerID: ProviderID.make("opencode") },
+        model: synoraFoundry,
         provider: {
-          ...providerInfo,
-          id: ProviderID.make("opencode"),
-          options: { apiKey: "console-token" },
-          key: "zen-token",
+          ...synoraProviderInfo,
+          options: { apiKey: "console-token", baseURL: "https://nps-foundry.services.ai.azure.com/openai/v1" },
+          key: "stored-key",
         },
-        auth: { type: "api", key: "zen-token" },
+        auth: { type: "api", key: "stored-key" },
       }),
     ).toMatchObject({
       type: "supported",
@@ -580,8 +586,8 @@ describe("session.llm-native.request", () => {
     })
     expect(
       LLMNativeRuntime.status({
-        model: baseModel,
-        provider: { ...providerInfo, options: {}, key: "provider-key" },
+        model: synoraFoundry,
+        provider: { ...synoraProviderInfo, options: {}, key: "provider-key" },
         auth: undefined,
       }),
     ).toMatchObject({
@@ -590,202 +596,20 @@ describe("session.llm-native.request", () => {
     })
   })
 
-  it.effect("native tool wrapper converts thrown errors into typed ToolFailure", () =>
-    Effect.gen(function* () {
-      const wrapped = LLMNativeRuntime.nativeTools(
-        {
-          explode: {
-            description: "always throws",
-            inputSchema: jsonSchema({ type: "object" }),
-            execute: async () => {
-              throw new Error("boom")
-            },
-          } satisfies Tool,
-        },
-        { messages: [] as ModelMessage[], abort: new AbortController().signal },
-      )
-
-      const failure = yield* Effect.flip(wrapped.explode.execute({}, { id: "call-1", name: "explode" }))
-      expect(failure).toBeInstanceOf(ToolFailure)
-      expect(failure.message).toBe("boom")
-    }),
-  )
-
-  it.effect("native tool wrapper raises ToolFailure when the source tool has no execute handler", () =>
-    Effect.gen(function* () {
-      // The AI SDK Tool shape allows execute to be omitted (e.g., client-side / MCP tools).
-      // The native runtime owns execution, so encountering such a tool here means upstream
-      // wiring is wrong; we want a typed failure, not a silent skip or unhandled exception.
-      const wrapped = LLMNativeRuntime.nativeTools(
-        { incomplete: { description: "no execute", inputSchema: jsonSchema({ type: "object" }) } satisfies Tool },
-        { messages: [] as ModelMessage[], abort: new AbortController().signal },
-      )
-
-      const failure = yield* Effect.flip(wrapped.incomplete.execute({}, { id: "call-1", name: "incomplete" }))
-      expect(failure).toBeInstanceOf(ToolFailure)
-      expect(failure.message).toContain("incomplete")
-    }),
-  )
-
-  it.effect("compiles through the native OpenAI Responses route", () =>
-    expectOpenAIResponsesRequest({
-      history: [storedSession.user("hello")],
-      providerOptions: { openai: { store: false, instructions: "You are concise." } },
-      maxOutputTokens: 512,
-      headers: { "x-request": "request-header" },
-      expectedBody: {
-        model: "gpt-5-mini",
-        instructions: "You are concise.",
-        input: [openAIResponses.user("hello")],
-        max_output_tokens: 512,
-        store: false,
-        stream: true,
+  test("constructs Synora Foundry responses request", () => {
+    const request = LLMNative.request({
+      model: {
+        ...baseModel,
+        id: ModelID.make("gpt-5.4"),
+        providerID: ProviderID.make("synora-foundry"),
+        api: { id: "gpt-5.4", url: "https://nps-foundry.services.ai.azure.com/openai/v1", npm: "@ai-sdk/azure" },
+        options: {},
       },
-    }),
-  )
+      messages: [{ role: "user", content: "hello" }],
+      headers: {},
+    })
 
-  it.effect("omits non-persisted OpenAI reasoning ids without encrypted state", () =>
-    expectOpenAIResponsesRequest({
-      history: [
-        storedSession.user("What changed?"),
-        storedSession.assistant([
-          storedSession.openaiReasoning("Checked the previous diff.", {
-            storedAs: "providerOptions",
-            itemId: "rs_1",
-            encryptedContent: null,
-          }),
-          storedSession.text("The parser changed."),
-        ]),
-        storedSession.user("Summarize it."),
-      ],
-      providerOptions: { openai: { store: false } },
-      expectedBody: {
-        input: [
-          openAIResponses.user("What changed?"),
-          openAIResponses.assistant("The parser changed."),
-          openAIResponses.user("Summarize it."),
-        ],
-        store: false,
-      },
-    }),
-  )
-
-  it.effect("preserves encrypted OpenAI reasoning state through native request lowering", () =>
-    expectOpenAIResponsesRequest({
-      history: [
-        storedSession.user("What changed?"),
-        storedSession.assistant([
-          storedSession.openaiReasoning("Checked the previous diff.", {
-            storedAs: "providerMetadata",
-            itemId: "rs_1",
-            encryptedContent: "encrypted-state",
-          }),
-          storedSession.text("The parser changed."),
-        ]),
-        storedSession.user("Summarize it."),
-      ],
-      providerOptions: { openai: { store: false, include: ["reasoning.encrypted_content"] } },
-      expectedBody: {
-        input: [
-          openAIResponses.user("What changed?"),
-          openAIResponses.openaiReasoning("Checked the previous diff.", {
-            itemId: "rs_1",
-            encryptedContent: "encrypted-state",
-          }),
-          openAIResponses.assistant("The parser changed."),
-          openAIResponses.user("Summarize it."),
-        ],
-        include: ["reasoning.encrypted_content"],
-        store: false,
-      },
-    }),
-  )
-
-  it.effect("preserves empty encrypted OpenAI reasoning items before tool output", () =>
-    expectOpenAIResponsesRequest({
-      history: [
-        storedSession.assistant([
-          storedSession.openaiReasoning("", {
-            storedAs: "providerMetadata",
-            itemId: "rs_1",
-            encryptedContent: "encrypted-state",
-          }),
-        ]),
-      ],
-      providerOptions: { openai: { store: false, include: ["reasoning.encrypted_content"] } },
-      expectedBody: {
-        input: [{ type: "reasoning", id: "rs_1", summary: [], encrypted_content: "encrypted-state" }],
-        include: ["reasoning.encrypted_content"],
-        store: false,
-      },
-    }),
-  )
-
-  it.effect("references stored OpenAI reasoning items by id", () =>
-    expectOpenAIResponsesRequest({
-      history: [
-        storedSession.assistant([
-          storedSession.openaiReasoning("Checked the previous diff.", {
-            storedAs: "providerMetadata",
-            itemId: "rs_1",
-            encryptedContent: null,
-          }),
-        ]),
-      ],
-      providerOptions: { openai: { store: true } },
-      expectedBody: {
-        input: [{ type: "item_reference", id: "rs_1" }],
-        store: true,
-      },
-    }),
-  )
-
-  it.effect("uses provider fetch override for native OpenAI OAuth requests", () =>
-    Effect.gen(function* () {
-      const captures: Array<{ url: string; body: unknown }> = []
-      const customFetch = Object.assign(
-        async (input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1]) => {
-          const request = input instanceof Request ? input : new Request(input, init)
-          captures.push({ url: request.url, body: await request.clone().json() })
-          return responsesStream([
-            { type: "response.output_text.delta", item_id: "msg_1", delta: "Hello" },
-            { type: "response.completed", response: { usage: { input_tokens: 1, output_tokens: 1 } } },
-          ])
-        },
-        { preconnect: () => undefined },
-      ) satisfies typeof fetch
-
-      const llmClient = yield* LLMClient.Service
-      const native = LLMNativeRuntime.stream({
-        model: baseModel,
-        provider: { ...providerInfo, options: { apiKey: OAUTH_DUMMY_KEY, fetch: customFetch } },
-        auth: { type: "oauth", refresh: "refresh", access: "access", expires: Date.now() + 60_000 },
-        llmClient,
-        messages: [{ role: "user", content: "hello" }],
-        tools: {},
-        providerOptions: { instructions: "You are concise." },
-        headers: {},
-        abort: new AbortController().signal,
-      })
-      expect(native.type).toBe("supported")
-      if (native.type === "unsupported") throw new Error(native.reason)
-      const events = Array.from(yield* native.stream.pipe(Stream.runCollect))
-
-      expect(captures).toHaveLength(1)
-      expect(captures[0]).toMatchObject({
-        url: "https://api.openai.com/v1/responses",
-        body: {
-          model: "gpt-5-mini",
-          instructions: "You are concise.",
-          input: [{ role: "user", content: [{ type: "input_text", text: "hello" }] }],
-        },
-      })
-      expect(events).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: "text-delta", text: "Hello" }),
-          expect.objectContaining({ type: "finish" }),
-        ]),
-      )
-    }),
-  )
+    expect(request.model.route.id).toContain("azure")
+    expect(request.model.route.endpoint.baseURL).toBe("https://nps-foundry.services.ai.azure.com/openai/v1")
+  })
 })

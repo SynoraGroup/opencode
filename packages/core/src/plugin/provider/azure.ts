@@ -55,27 +55,3 @@ export const AzurePlugin = PluginV2.define({
     }
   }),
 })
-
-export const AzureCognitiveServicesPlugin = PluginV2.define({
-  id: PluginV2.ID.make("azure-cognitive-services"),
-  effect: Effect.gen(function* () {
-    return {
-      "catalog.transform": Effect.fn(function* (evt) {
-        const resourceName = process.env.AZURE_COGNITIVE_SERVICES_RESOURCE_NAME
-        if (!resourceName) return
-        for (const item of evt.data) {
-          if (item.provider.endpoint.type !== "aisdk") continue
-          if (item.provider.endpoint.package !== "@ai-sdk/openai-compatible") continue
-          if (!item.provider.id.includes("azure-cognitive-services")) continue
-          evt.provider.update(item.provider.id, (provider) => {
-            provider.options.aisdk.provider.baseURL = `https://${resourceName}.cognitiveservices.azure.com/openai`
-          })
-        }
-      }),
-      "aisdk.language": Effect.fn(function* (evt) {
-        if (evt.model.providerID !== ProviderV2.ID.make("azure-cognitive-services")) return
-        evt.language = selectLanguage(evt.sdk, evt.model.apiID, Boolean(evt.options.useCompletionUrls))
-      }),
-    }
-  }),
-})

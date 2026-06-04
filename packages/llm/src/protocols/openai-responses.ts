@@ -321,7 +321,11 @@ const lowerToolResultOutput = Effect.fn("OpenAIResponses.lowerToolResultOutput")
   // Text/json/error results are encoded as a plain string for backward
   // compatibility with existing cassettes and provider expectations.
   if (part.result.type !== "content") return ProviderShared.toolResultText(part)
-  return yield* Effect.forEach(part.result.value, lowerToolResultContentItem)
+  const result: Array<{ type: "input_text"; text: string } | { type: "input_image"; image_url: string }> = []
+  for (const item of part.result.value) {
+    result.push(yield* lowerToolResultContentItem(item))
+  }
+  return result
 })
 
 const lowerMessages = Effect.fn("OpenAIResponses.lowerMessages")(function* (request: LLMRequest) {

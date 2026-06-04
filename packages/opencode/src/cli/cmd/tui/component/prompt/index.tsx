@@ -347,7 +347,7 @@ export function Prompt(props: PromptProps) {
     const cost = session?.cost ?? 0
     return {
       context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
-      cost: cost > 0 ? money.format(cost) : undefined,
+      cost: session ? money.format(cost) : undefined,
     }
   })
 
@@ -1654,8 +1654,6 @@ export function Prompt(props: PromptProps) {
                       const message = createMemo(() => {
                         const r = retry()
                         if (!r) return
-                        if (r.message.includes("exceeded your current quota") && r.message.includes("gemini"))
-                          return "gemini is way too hot right now"
                         if (r.message.length > 80) return r.message.slice(0, 80) + "..."
                         return r.message
                       })

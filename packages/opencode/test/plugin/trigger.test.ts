@@ -74,7 +74,7 @@ const triggerSystemTransform = Effect.fn("PluginTriggerTest.triggerSystemTransfo
     systemHook,
     {
       model: {
-        providerID: ProviderID.anthropic,
+        providerID: ProviderID.azure,
         modelID: ModelID.make("claude-sonnet-4-6"),
       },
     },

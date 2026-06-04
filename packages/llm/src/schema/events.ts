@@ -33,18 +33,13 @@ import { ToolResultValue } from "./messages"
  *
  * **Semantics by provider**:
  *
- * - OpenAI Chat / Responses / Gemini / Bedrock: provider reports inclusive
- *   `inputTokens` and an inclusive `outputTokens`; mapper subtracts to
- *   derive the breakdown.
- * - Anthropic: provider reports the breakdown natively (`input_tokens` is
- *   non-cached only); mapper sums to derive the inclusive `inputTokens`.
- *   Anthropic does *not* break extended-thinking out of `output_tokens`, so
- *   `reasoningTokens` is `undefined` and `outputTokens` carries the
- *   combined total — a documented limitation of the Anthropic API.
+ * - OpenAI Chat / Responses / Bedrock report inclusive `inputTokens` and
+ *   inclusive `outputTokens`; mappers subtract to derive the breakdown when
+ *   needed. Bedrock reports cache details under provider metadata for
+ *   Converse responses.
  *
- * `providerMetadata` always carries the provider's raw usage payload —
- * keyed by provider name (`{ openai: ... }`, `{ anthropic: ... }`, etc.)
- * — for fields we don't normalize and for billing-level audit trails.
+ * `providerMetadata` always carries the provider's raw usage payload, keyed
+ * by provider name, for fields we don't normalize and for billing audit trails.
  * Matches the same escape-hatch field on `LLMEvent`.
  */
 export class Usage extends Schema.Class<Usage>("LLM.Usage")({

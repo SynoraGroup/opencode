@@ -75,7 +75,7 @@ export const WebFetchTool = Tool.define(
 
           const request = HttpClientRequest.get(params.url).pipe(HttpClientRequest.setHeaders(headers))
 
-          // Retry with honest UA if blocked by Cloudflare bot detection (TLS fingerprint mismatch)
+          // Retry with an honest UA if bot protection challenges the default TLS fingerprint
           const response = yield* httpOk.execute(request).pipe(
             Effect.catchIf(
               (err) =>

@@ -8,18 +8,10 @@ export type ProviderID = typeof providerIdSchema.Type
 
 export const ProviderID = providerIdSchema.pipe(
   withStatics((schema: typeof providerIdSchema) => ({
-    // Well-known providers
+    // Well-known providers retained for Synora Phase 1 and local fallback metadata.
     opencode: schema.make("opencode"),
-    anthropic: schema.make("anthropic"),
-    openai: schema.make("openai"),
-    google: schema.make("google"),
-    googleVertex: schema.make("google-vertex"),
-    githubCopilot: schema.make("github-copilot"),
     amazonBedrock: schema.make("amazon-bedrock"),
     azure: schema.make("azure"),
-    openrouter: schema.make("openrouter"),
-    mistral: schema.make("mistral"),
-    gitlab: schema.make("gitlab"),
   })),
 )
 

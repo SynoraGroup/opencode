@@ -1,18 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { LLM, LLMClient, Provider } from "@opencode-ai/llm"
-import { Route, Protocol } from "@opencode-ai/llm/route"
+import { Protocol, Route } from "@opencode-ai/llm/route"
 import { Provider as ProviderSubpath } from "@opencode-ai/llm/provider"
-import {
-  CloudflareAIGateway,
-  CloudflareWorkersAI,
-  OpenAI,
-  OpenAICompatible,
-  OpenRouter,
-  XAI,
-} from "@opencode-ai/llm/providers"
-import * as GitHubCopilot from "@opencode-ai/llm/providers/github-copilot"
-import { OpenAIChat, OpenAICompatibleChat, OpenAIResponses } from "@opencode-ai/llm/protocols"
-import * as AnthropicMessages from "@opencode-ai/llm/protocols/anthropic-messages"
+import { AmazonBedrock, Azure, OpenAI } from "@opencode-ai/llm/providers"
+import { BedrockConverse, OpenAIChat, OpenAIResponses } from "@opencode-ai/llm/protocols"
 
 describe("public exports", () => {
   test("root exposes app-facing runtime APIs", () => {
@@ -28,35 +19,17 @@ describe("public exports", () => {
     expect(Protocol.make).toBeFunction()
   })
 
-  test("provider barrels expose user-facing facades", () => {
+  test("provider barrel exposes retained Synora protocol facades", () => {
+    expect(Azure.configure({ apiKey: "fixture", baseURL: "https://foundry.test/openai/v1" }).responses).toBeFunction()
+    expect(Azure.configure({ apiKey: "fixture", baseURL: "https://foundry.test/openai/v1" }).chat).toBeFunction()
+    expect(AmazonBedrock.configure({ apiKey: "fixture" }).model).toBeFunction()
     expect(OpenAI.model).toBeFunction()
-    expect(OpenAI.provider.model).toBe(OpenAI.model)
-    expect(OpenAI.provider.responses).toBe(OpenAI.responses)
-    expect(OpenAI.provider.responsesWebSocket).toBe(OpenAI.responsesWebSocket)
-    expect(OpenAI.configure({ apiKey: "fixture" }).responses).toBeFunction()
-    expect(OpenAICompatible.deepseek.model).toBeFunction()
-    expect(CloudflareAIGateway.configure).toBeFunction()
-    expect(CloudflareAIGateway.configure({ accountId: "fixture", gatewayApiKey: "fixture" }).model).toBeFunction()
-    expect(CloudflareWorkersAI.configure).toBeFunction()
-    expect(CloudflareWorkersAI.configure({ accountId: "fixture", apiKey: "fixture" }).model).toBeFunction()
-    expect(OpenRouter.model).toBeFunction()
-    expect(OpenRouter.provider.model).toBe(OpenRouter.model)
-    expect(XAI.model).toBeFunction()
-    expect(XAI.provider.model).toBe(XAI.model)
-    expect(XAI.provider.responses).toBe(XAI.responses)
-    expect(XAI.provider.chat).toBe(XAI.chat)
-    expect(XAI.configure({ apiKey: "fixture" }).responses("grok-4.3").route.id).toBe("openai-responses")
-    expect(XAI.configure({ apiKey: "fixture" }).chat("grok-4.3").route.id).toBe("openai-compatible-chat")
-    expect(
-      GitHubCopilot.configure({ baseURL: "https://api.githubcopilot.test", apiKey: "fixture" }).model,
-    ).toBeFunction()
   })
 
-  test("protocol barrels expose supported low-level routes", () => {
+  test("protocol barrels expose retained low-level routes", () => {
     expect(OpenAIChat.route.id).toBe("openai-chat")
-    expect(OpenAICompatibleChat.route.id).toBe("openai-compatible-chat")
     expect(OpenAIResponses.route.id).toBe("openai-responses")
     expect(OpenAIResponses.webSocketRoute.id).toBe("openai-responses-websocket")
-    expect(AnthropicMessages.route.id).toBe("anthropic-messages")
+    expect(BedrockConverse.route.id).toBe("bedrock-converse")
   })
 })

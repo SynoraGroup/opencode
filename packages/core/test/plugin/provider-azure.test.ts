@@ -62,12 +62,12 @@ describe("AzurePlugin", () => {
             item.endpoint = azure.endpoint
             item.options = azure.options
           })
-          catalog.provider.update(ProviderV2.ID.openai, () => {})
+          catalog.provider.update(ProviderV2.ID.amazonBedrock, () => {})
         })
         expect((yield* catalog.provider.get(ProviderV2.ID.azure)).options.aisdk.provider.resourceName).toBe(
           "from-config",
         )
-        expect((yield* catalog.provider.get(ProviderV2.ID.openai)).options.aisdk.provider.resourceName).toBeUndefined()
+        expect((yield* catalog.provider.get(ProviderV2.ID.amazonBedrock)).options.aisdk.provider.resourceName).toBeUndefined()
       }),
     ),
   )

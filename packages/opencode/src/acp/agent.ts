@@ -1695,9 +1695,9 @@ async function defaultModel(config: ACPConfig, cwd?: string): Promise<{ provider
   const lastUsed = await lastUsedModel(sdk, directory, providers)
   if (lastUsed) return lastUsed
 
-  const opencodeProvider = providers.find((p) => p.id === "opencode")
-  if (opencodeProvider) {
-    const [best] = Provider.sort(Object.values(opencodeProvider.models))
+  const foundryProvider = providers.find((p) => p.id === "synora-foundry")
+  if (foundryProvider) {
+    const [best] = Provider.sort(Object.values(foundryProvider.models))
     if (best) {
       return {
         providerID: ProviderID.make(best.providerID),

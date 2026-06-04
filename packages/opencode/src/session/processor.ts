@@ -10,6 +10,7 @@ import { Snapshot } from "@/snapshot"
 import * as Session from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
+import { SessionMetadataLedger } from "./metadata-ledger"
 import { isOverflow } from "./overflow"
 import { PartID } from "./schema"
 import type { SessionID } from "./schema"
@@ -100,6 +101,41 @@ export function repeatedLargeZeroCacheSteps(input: {
 }) {
   if (!supportsCacheDiagnostics(input.model)) return 0
   return input.steps.filter((step) => isLargeZeroCacheStep(step.tokens)).length
+}
+
+function providerLedgerEntry(input: {
+  messageID: string
+  providerID: string
+  modelID: string
+  tokens: MessageV2.StepFinishPart["tokens"]
+  requestID: string
+  parts: MessageV2.Part[]
+}): SessionMetadataLedger.LedgerEntry {
+  const reasoning = input.parts.filter((part): part is MessageV2.ReasoningPart => part.type === "reasoning")
+  const hasEncrypted = reasoning.some((part) => {
+    const openai = isRecord(part.metadata?.openai) ? part.metadata.openai : undefined
+    return typeof openai?.reasoningEncryptedContent === "string"
+  })
+  const hasContent = reasoning.some((part) => part.text.length > 0) || hasEncrypted
+  const hasCache = input.tokens.cache.read > 0 || input.tokens.cache.write > 0
+  return {
+    messageID: input.messageID,
+    timestamp: Date.now(),
+    providerID: input.providerID,
+    modelID: input.modelID,
+    tokens: input.tokens,
+    reasoning: {
+      mode: reasoning.length ? (hasEncrypted ? "responses_encrypted" : "provider_reasoning") : "none",
+      encrypted: hasEncrypted,
+      hasContent,
+    },
+    cache: {
+      keyUsed: input.providerID === "synora-foundry" && hasCache,
+      readTokens: input.tokens.cache.read,
+      writeTokens: input.tokens.cache.write,
+    },
+    requestID: input.requestID,
+  }
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
@@ -617,8 +653,17 @@ export const layer = Layer.effect(
             ctx.assistantMessage.finish = value.reason
             ctx.assistantMessage.cost += usage.cost
             ctx.assistantMessage.tokens = usage.tokens
+            const stepFinishID = PartID.ascending()
+            const ledgerEntry = providerLedgerEntry({
+              messageID: ctx.assistantMessage.id,
+              providerID: ctx.model.providerID,
+              modelID: ctx.model.id,
+              tokens: usage.tokens,
+              requestID: `${ctx.assistantMessage.id}:${stepFinishID}`,
+              parts: MessageV2.parts(ctx.assistantMessage.id),
+            })
             yield* session.updatePart({
-              id: PartID.ascending(),
+              id: stepFinishID,
               reason: value.reason,
               snapshot: completedSnapshot,
               messageID: ctx.assistantMessage.id,
@@ -626,6 +671,10 @@ export const layer = Layer.effect(
               type: "step-finish",
               tokens: usage.tokens,
               cost: usage.cost,
+              metadata: {
+                ...(value.providerMetadata ? { provider: value.providerMetadata } : {}),
+                ledger: ledgerEntry,
+              },
             })
             yield* session.updateMessage(ctx.assistantMessage)
             yield* warnOnRepeatedLargeZeroCache(usage.tokens)

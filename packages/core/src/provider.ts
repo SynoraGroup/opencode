@@ -6,18 +6,10 @@ import { Schema } from "effect"
 export const ID = Schema.String.pipe(
   Schema.brand("ProviderV2.ID"),
   withStatics((schema) => ({
-    // Well-known providers
+    // Well-known providers retained for Synora Phase 1 and local fallback metadata.
     opencode: schema.make("opencode"),
-    anthropic: schema.make("anthropic"),
-    openai: schema.make("openai"),
-    google: schema.make("google"),
-    googleVertex: schema.make("google-vertex"),
-    githubCopilot: schema.make("github-copilot"),
     amazonBedrock: schema.make("amazon-bedrock"),
     azure: schema.make("azure"),
-    openrouter: schema.make("openrouter"),
-    mistral: schema.make("mistral"),
-    gitlab: schema.make("gitlab"),
   })),
 )
 export type ID = typeof ID.Type
@@ -48,11 +40,6 @@ const AISDK = Schema.Struct({
   url: Schema.String.pipe(Schema.optional),
 })
 
-const AnthropicMessages = Schema.Struct({
-  type: Schema.Literal("anthropic/messages"),
-  url: Schema.String,
-})
-
 const UnknownEndpoint = Schema.Struct({
   type: Schema.Literal("unknown"),
 })
@@ -61,7 +48,6 @@ export const Endpoint = Schema.Union([
   UnknownEndpoint,
   OpenAIResponses,
   OpenAICompletions,
-  AnthropicMessages,
   AISDK,
 ]).pipe(Schema.toTaggedUnion("type"))
 export type Endpoint = typeof Endpoint.Type

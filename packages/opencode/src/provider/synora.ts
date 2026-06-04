@@ -33,10 +33,13 @@ type Contract = {
   readonly name: string
   readonly apiID: string
   readonly npm: string
+  readonly cost: Model["cost"]
   readonly context: number
   readonly input?: number
   readonly output: number
+  readonly temperature?: boolean
   readonly attachment?: boolean
+  readonly inputModalities?: Model["capabilities"]["input"]
   readonly interleaved?: Model["capabilities"]["interleaved"]
   readonly releaseDate: string
   readonly sources: {
@@ -64,6 +67,16 @@ const textImageInput = {
   image: true,
 }
 
+const textImagePdfInput = {
+  ...textImageInput,
+  pdf: true,
+}
+
+const textImageVideoInput = {
+  ...textImageInput,
+  video: true,
+}
+
 const textOutput = textOnly
 
 const DOC_RESPONSE_API = { kind: "official-doc", detail: "azure-openai-responses" } satisfies Provenance
@@ -88,9 +101,29 @@ const CONTRACTS = {
     name: "GPT-5.4",
     apiID: "gpt-5.4",
     npm: "@ai-sdk/azure",
+    cost: {
+      input: 2.5,
+      output: 15,
+      cache: { read: 0.25, write: 0 },
+      tiers: [
+        {
+          input: 5,
+          output: 22.5,
+          cache: { read: 0.5, write: 0 },
+          tier: { type: "context", size: 272_000 },
+        },
+      ],
+      experimentalOver200K: {
+        input: 5,
+        output: 22.5,
+        cache: { read: 0.5, write: 0 },
+      },
+    },
     context: 1_050_000,
+    input: 922_000,
     output: 128_000,
     attachment: true,
+    inputModalities: textImagePdfInput,
     releaseDate: "2026-03-05",
     sources: {
       transport: DOC_RESPONSE_API,
@@ -112,10 +145,16 @@ const CONTRACTS = {
     name: "GPT-5.3 Codex",
     apiID: "gpt-5.3-codex",
     npm: "@ai-sdk/azure",
+    cost: {
+      input: 1.75,
+      output: 14,
+      cache: { read: 0.175, write: 0 },
+    },
     context: 400_000,
     input: 272_000,
     output: 128_000,
     attachment: true,
+    inputModalities: textImagePdfInput,
     releaseDate: "2026-02-24",
     sources: {
       transport: DOC_RESPONSE_API,
@@ -136,10 +175,16 @@ const CONTRACTS = {
     name: "DeepSeek V4 Pro",
     apiID: "DeepSeek-V4-Pro",
     npm: "@ai-sdk/azure",
+    cost: {
+      input: 1.74,
+      output: 3.48,
+      cache: { read: 0.145, write: 0 },
+    },
     context: 1_000_000,
-    output: 128_000,
+    output: 384_000,
+    temperature: true,
     interleaved: { field: "reasoning_content" },
-    releaseDate: "2026-04-23",
+    releaseDate: "2026-04-24",
     sources: {
       transport: DOC_CHAT_API,
       auth: DEFAULT_FOUNDRY,
@@ -159,10 +204,16 @@ const CONTRACTS = {
     name: "DeepSeek V4 Flash",
     apiID: "DeepSeek-V4-Flash",
     npm: "@ai-sdk/azure",
+    cost: {
+      input: 0.14,
+      output: 0.28,
+      cache: { read: 0.028, write: 0 },
+    },
     context: 1_000_000,
-    output: 128_000,
+    output: 384_000,
+    temperature: true,
     interleaved: { field: "reasoning_content" },
-    releaseDate: "2026-04-23",
+    releaseDate: "2026-04-24",
     sources: {
       transport: DOC_CHAT_API,
       auth: DEFAULT_FOUNDRY,
@@ -182,9 +233,16 @@ const CONTRACTS = {
     name: "Kimi K2.6",
     apiID: "Kimi-K2.6",
     npm: "@ai-sdk/azure",
+    cost: {
+      input: 0.95,
+      output: 4,
+      cache: { read: 0.16, write: 0 },
+    },
     context: 262_144,
-    output: 128_000,
+    output: 262_144,
+    temperature: true,
     attachment: true,
+    inputModalities: textImageVideoInput,
     interleaved: { field: "reasoning_content" },
     releaseDate: "2026-04-20",
     sources: {
@@ -206,9 +264,29 @@ const CONTRACTS = {
     name: "Claude Opus 4.6",
     apiID: "eu.anthropic.claude-opus-4-6-v1",
     npm: "@ai-sdk/amazon-bedrock",
+    cost: {
+      input: 5,
+      output: 25,
+      cache: { read: 0.5, write: 6.25 },
+      tiers: [
+        {
+          input: 10,
+          output: 37.5,
+          cache: { read: 1, write: 12.5 },
+          tier: { type: "context", size: 200_000 },
+        },
+      ],
+      experimentalOver200K: {
+        input: 10,
+        output: 37.5,
+        cache: { read: 1, write: 12.5 },
+      },
+    },
     context: 1_000_000,
     output: 128_000,
+    temperature: true,
     attachment: true,
+    inputModalities: textImagePdfInput,
     releaseDate: "2026-02-05",
     sources: {
       transport: DOC_BEDROCK_CONVERSE,
@@ -229,9 +307,29 @@ const CONTRACTS = {
     name: "Claude Sonnet 4.6",
     apiID: "eu.anthropic.claude-sonnet-4-6",
     npm: "@ai-sdk/amazon-bedrock",
+    cost: {
+      input: 3,
+      output: 15,
+      cache: { read: 0.3, write: 3.75 },
+      tiers: [
+        {
+          input: 6,
+          output: 22.5,
+          cache: { read: 0.6, write: 7.5 },
+          tier: { type: "context", size: 200_000 },
+        },
+      ],
+      experimentalOver200K: {
+        input: 6,
+        output: 22.5,
+        cache: { read: 0.6, write: 7.5 },
+      },
+    },
     context: 1_000_000,
     output: 64_000,
+    temperature: true,
     attachment: true,
+    inputModalities: textImagePdfInput,
     releaseDate: "2026-02-17",
     sources: {
       transport: DOC_BEDROCK_CONVERSE,
@@ -260,25 +358,18 @@ function contractModel(input: Contract, baseURL: string, region: string): Model 
       ...(input.transport === "chat_completions" ? { useCompletionUrls: true } : {}),
       ...(input.providerFamily === "bedrock" ? { region } : {}),
     },
-    cost: {
-      input: 0,
-      output: 0,
-      cache: {
-        read: 0,
-        write: 0,
-      },
-    },
+    cost: input.cost,
     limit: {
       context: input.context,
       input: input.input,
       output: input.output,
     },
     capabilities: {
-      temperature: false,
+      temperature: input.temperature ?? false,
       reasoning: input.reasoning !== "none",
       attachment: input.attachment ?? false,
       toolcall: true,
-      input: input.attachment ? textImageInput : textOnly,
+      input: input.inputModalities ?? (input.attachment ? textImageInput : textOnly),
       output: textOutput,
       interleaved: input.interleaved ?? false,
     },
@@ -294,6 +385,22 @@ export function contract(
   const match = CONTRACTS[model.id as keyof typeof CONTRACTS]
   if (!match) return
   return match.providerID === model.providerID ? match : undefined
+}
+
+export function validationError(model: Pick<Model, "providerID" | "id" | "api" | "options">): string | undefined {
+  const resolved = contract(model)
+  if (!resolved) return `model is not an approved Synora contract: ${model.providerID}/${model.id}`
+  if (model.api.id !== resolved.apiID) return `model API id does not match Synora contract: ${model.api.id}`
+  if (model.api.npm !== resolved.npm) return `provider package does not match Synora contract: ${model.api.npm}`
+  if (resolved.transport === "responses" && model.options.useCompletionUrls === true) {
+    return `transport does not match Synora contract: ${model.id} must use OpenAI Responses`
+  }
+  if (resolved.transport === "chat_completions" && model.options.useCompletionUrls !== true) {
+    return `transport does not match Synora contract: ${model.id} must use OpenAI Chat Completions`
+  }
+  if (resolved.transport === "bedrock_converse" && model.api.npm !== "@ai-sdk/amazon-bedrock") {
+    return `transport does not match Synora contract: ${model.id} must use Bedrock Converse`
+  }
 }
 
 export function providers(input: Input): Record<ProviderID, Info> {
@@ -369,7 +476,14 @@ export function options(input: {
 export function smallOptions(input: { readonly model: Pick<Model, "providerID" | "id"> }) {
   const resolved = contract(input.model)
   if (!resolved) return {}
-  return {}
+  const result: Record<string, unknown> = {}
+  if (resolved.transport === "responses") {
+    result.store = false
+  }
+  if (resolved.reasoning === "responses_encrypted") {
+    result.include = [...ENCRYPTED_REASONING_INCLUDE]
+  }
+  return result
 }
 
 export function sources(input: Pick<Model, "providerID" | "id"> | { providerID: string; id: string }) {

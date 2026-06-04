@@ -22,14 +22,14 @@ export class ResponseStreamError extends Error {
 // Adapted from overflow detection patterns in:
 // https://github.com/badlogic/pi-mono/blob/main/packages/ai/src/utils/overflow.ts
 const OVERFLOW_PATTERNS = [
-  /prompt is too long/i, // Anthropic
+  /prompt is too long/i, // provider-reported overflow
   /input is too long for requested model/i, // Amazon Bedrock
   /exceeds the context window/i, // OpenAI (Completions + Responses API message text)
-  /input token count.*exceeds the maximum/i, // Google (Gemini)
-  /maximum prompt length is \d+/i, // xAI (Grok)
-  /reduce the length of the messages/i, // Groq
-  /maximum context length is \d+ tokens/i, // OpenRouter, DeepSeek, vLLM
-  /exceeds the limit of \d+/i, // GitHub Copilot
+  /input token count.*exceeds the maximum/i, // provider-reported token limit
+  /maximum prompt length is \d+/i, // provider-reported prompt limit
+  /reduce the length of the messages/i, // provider-reported message length limit
+  /maximum context length is \d+ tokens/i, // provider-reported context length limit
+  /exceeds the limit of \d+/i, // provider-reported limit
   /exceeds the available context size/i, // llama.cpp server
   /greater than the context length/i, // LM Studio
   /context window exceeds limit/i, // MiniMax

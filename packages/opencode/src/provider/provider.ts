@@ -337,7 +337,7 @@ export function fromModelsDevProvider(provider: ModelsDev.Provider): Info {
         api: {
           id,
           url: item.provider?.api ?? provider.api ?? "",
-          npm: item.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
+          npm: item.provider?.npm ?? provider.npm ?? "",
         },
         name: item.name,
         family: item.family,

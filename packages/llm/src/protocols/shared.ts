@@ -99,8 +99,7 @@ export const parseJson = (route: string, input: string, message: string) =>
 /**
  * Join the `text` field of a list of parts with newlines. Used by routes
  * that flatten system / message content arrays into a single provider string
- * (OpenAI Chat `system` content, OpenAI Responses `system` content, Gemini
- * `systemInstruction.parts[].text`).
+ * (OpenAI Chat `system` content and OpenAI Responses `system` content).
  */
 export const joinText = (parts: ReadonlyArray<{ readonly text: string }>) => parts.map((part) => part.text).join("\n")
 
@@ -116,8 +115,8 @@ export const parseToolInput = (route: string, name: string, raw: string) =>
 /**
  * Encode a `MediaPart`'s raw bytes for inclusion in a JSON request body.
  * `data: string` is assumed to already be base64 (matches caller convention
- * across Gemini / Bedrock); `data: Uint8Array` is base64-encoded here. Used
- * by every route that supports image / document inputs.
+ * across Bedrock); `data: Uint8Array` is base64-encoded here. Used by
+ * routes that support image / document inputs.
  */
 export const mediaBytes = (part: MediaPart) =>
   typeof part.data === "string" ? part.data : Buffer.from(part.data).toString("base64")

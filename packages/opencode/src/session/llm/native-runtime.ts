@@ -1,12 +1,12 @@
 import type { Auth } from "@/auth"
 import type { Provider } from "@/provider/provider"
+import { SynoraProvider } from "@/provider/synora"
 import { ProviderTransform } from "@/provider/transform"
 import { errorMessage } from "@/util/error"
 import { isRecord } from "@/util/record"
 import { asSchema, type ModelMessage, type Tool } from "ai"
 import { Effect } from "effect"
 import * as Stream from "effect/Stream"
-import { FetchHttpClient } from "effect/unstable/http"
 import { tool as nativeTool, ToolFailure, type JsonSchema, type LLMEvent } from "@opencode-ai/llm"
 import { Auth as RouteAuth, type AuthShape, type LLMClientShape } from "@opencode-ai/llm/route"
 import { LLMNative } from "./native-request"
@@ -36,36 +36,22 @@ type StreamInput = {
 }
 
 export function status(input: Pick<StreamInput, "model" | "provider" | "auth">): RuntimeStatus {
-  return statusWithFetch(input, providerFetch(input))
-}
-
-function statusWithFetch(
-  input: Pick<StreamInput, "model" | "provider" | "auth">,
-  fetch: typeof globalThis.fetch | undefined,
-): RuntimeStatus {
   const providerID = input.model.providerID
-  const isSynora = providerID === "synora-foundry" || providerID === "synora-bedrock"
-  if (providerID !== "openai" && providerID !== "anthropic" && !providerID.startsWith("opencode") && !isSynora)
-    return { type: "unsupported", reason: "provider is not openai, opencode, anthropic, or synora" }
+  if (providerID !== "synora-foundry" && providerID !== "synora-bedrock")
+    return { type: "unsupported", reason: "provider is not a synora provider" }
+  const contractError = SynoraProvider.validationError(input.model)
+  if (contractError) return { type: "unsupported", reason: contractError }
   const npm = input.model.api.npm
-  if (
-    npm !== "@ai-sdk/openai" &&
-    npm !== "@ai-sdk/openai-compatible" &&
-    npm !== "@ai-sdk/anthropic" &&
-    npm !== "@ai-sdk/azure" &&
-    npm !== "@ai-sdk/amazon-bedrock"
-  )
+  if (npm !== "@ai-sdk/azure" && npm !== "@ai-sdk/amazon-bedrock")
     return { type: "unsupported", reason: "provider package is not supported by native runtime" }
   const routeAuth =
     input.auth?.type !== "oauth"
       ? undefined
-      : input.provider.id === "openai" && fetch
-        ? undefined
-        : input.provider.id === "synora-foundry" && npm === "@ai-sdk/azure"
-          ? RouteAuth.bearer(input.auth.access)
-          : undefined
-  if (input.auth?.type === "oauth" && !(input.provider.id === "openai" && fetch) && !routeAuth) {
-    return { type: "unsupported", reason: "OAuth auth requires a provider fetch override" }
+      : input.provider.id === "synora-foundry" && npm === "@ai-sdk/azure"
+        ? RouteAuth.bearer(input.auth.access)
+        : undefined
+  if (input.auth?.type === "oauth" && !routeAuth) {
+    return { type: "unsupported", reason: "OAuth auth requires a synora provider with azure sdk" }
   }
 
   const apiKey = typeof input.provider.options.apiKey === "string" ? input.provider.options.apiKey : input.provider.key
@@ -81,20 +67,9 @@ function statusWithFetch(
 }
 
 export function stream(input: StreamInput): StreamResult {
-  const fetch = providerFetch(input)
-  const current = statusWithFetch(input, fetch)
+  const current = status(input)
   if (current.type === "unsupported") return current
 
-  // Integration point with @opencode-ai/llm: native-request lowers session data
-  // into an LLMRequest, then LLMClient handles route selection and transport.
-  //
-  // ProviderTransform.providerOptions builds AI-SDK-shaped options for the
-  // selected SDK key (e.g. "openai") and the native LLM SDK reads the same
-  // keys via OpenAIOptions.* (store, reasoningEffort, reasoningSummary,
-  // include, textVerbosity, promptCacheKey). Both sides intentionally use
-  // OpenAI's official wire field names, so this is identity, not translation
-  // — if a field ever needs to differ between the two surfaces, the
-  // translation belongs here, not split across both packages.
   const stream = input.llmClient.stream({
     request: LLMNative.request({
       model: input.model,
@@ -115,15 +90,8 @@ export function stream(input: StreamInput): StreamResult {
 
   return {
     ...current,
-    stream: fetch ? stream.pipe(Stream.provideService(FetchHttpClient.Fetch, fetch)) : stream,
+    stream,
   }
-}
-
-function providerFetch(input: Pick<StreamInput, "provider" | "auth">): typeof globalThis.fetch | undefined {
-  if (input.provider.id !== "openai" || input.auth?.type !== "oauth") return undefined
-  const value: unknown = input.provider.options.fetch
-  if (typeof value !== "function") return undefined
-  return value as typeof globalThis.fetch
 }
 
 function providerHeaders(value: unknown): Record<string, string> | undefined {

@@ -301,11 +301,6 @@ function ApiMethod(props: ApiMethodProps) {
               <text fg={theme.textMuted}>This provider is not available in Synora Code.</text>
             </box>
           ),
-          "opencode-go": (
-            <box gap={1}>
-              <text fg={theme.textMuted}>This provider is not available in Synora Code.</text>
-            </box>
-          ),
         }[props.providerID] ?? undefined
       }
       onConfirm={async (value) => {

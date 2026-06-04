@@ -391,26 +391,11 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
   const reasoningTokens = safe(input.usage.reasoningTokens ?? 0)
 
   const cacheReadInputTokens = safe(input.usage.cacheReadInputTokens ?? 0)
-  const anthropicCacheWrite = input.metadata?.["anthropic"]?.["cacheCreationInputTokens"]
-  const vertexCacheWrite = input.metadata?.["vertex"]?.["cacheCreationInputTokens"]
   const bedrockCacheWrite = numberField(input.metadata?.["bedrock"]?.["usage"], "cacheWriteInputTokens")
-  const veniceCacheWrite = numberField(input.metadata?.["venice"]?.["usage"], "cacheCreationInputTokens")
-  const cacheWriteInputTokens = safe(
-    Number(
-      input.usage.cacheWriteInputTokens ??
-        anthropicCacheWrite ??
-        // google-vertex-anthropic returns metadata under "vertex" key
-        // (AnthropicMessagesLanguageModel custom provider key from 'vertex.anthropic.messages')
-        vertexCacheWrite ??
-        bedrockCacheWrite ??
-        veniceCacheWrite ??
-        0,
-    ),
-  )
+  const cacheWriteInputTokens = safe(Number(input.usage.cacheWriteInputTokens ?? bedrockCacheWrite ?? 0))
 
-  // AI SDK v6 normalized inputTokens to include cached tokens across all providers
-  // (including Anthropic/Bedrock which previously excluded them). Always subtract cache
-  // tokens to get the non-cached input count for separate cost calculation.
+  // Usage inputTokens are inclusive; subtract cache tokens to keep non-cached
+  // input accounting separate for cost calculation.
   const adjustedInputTokens = safe(inputTokens - cacheReadInputTokens - cacheWriteInputTokens)
 
   const total = input.usage.totalTokens
@@ -459,10 +444,7 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
       cacheFields: {
         usageCacheRead: input.usage.cacheReadInputTokens === undefined ? "absent" : "present",
         usageCacheWrite: input.usage.cacheWriteInputTokens === undefined ? "absent" : "present",
-        metadataAnthropicCacheWrite: anthropicCacheWrite === undefined ? "absent" : "present",
-        metadataVertexCacheWrite: vertexCacheWrite === undefined ? "absent" : "present",
         metadataBedrockCacheWrite: bedrockCacheWrite === undefined ? "absent" : "present",
-        metadataVeniceCacheWrite: veniceCacheWrite === undefined ? "absent" : "present",
       },
     })
   }

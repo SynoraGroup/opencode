@@ -13,15 +13,12 @@ import type { LLMError, LLMEvent, LLMRequest, ProtocolID } from "../schema"
  *
  * - `OpenAIChat.protocol` — chat completions style
  * - `OpenAIResponses.protocol` — responses API
- * - `AnthropicMessages.protocol` — messages API with content blocks
- * - `Gemini.protocol` — generateContent
  * - `BedrockConverse.protocol` — Converse with binary event-stream framing
  *
  * A `Protocol` is **not** a deployment. It does not know which URL, which
  * headers, or which auth scheme to use. Those are deployment concerns owned
  * by `Route.make(...)` along with the chosen `Endpoint`, `Auth`,
- * and `Framing`. This separation is what lets DeepSeek, TogetherAI, Cerebras,
- * etc. all reuse `OpenAIChat.protocol` without forking 300 lines per provider.
+ * and `Framing`. This separation lets Synora Foundry chat deployments reuse `OpenAIChat.protocol` without forking route code.
  *
  * The four type parameters reflect the pipeline:
  *
