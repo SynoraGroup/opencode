@@ -9,6 +9,7 @@ import {
   Usage,
   type FinishReason,
   type LLMRequest,
+  type ReasoningPart,
   type TextPart,
   type ToolCallPart,
   type ToolDefinition,
@@ -203,12 +204,17 @@ const lowerAssistantMessage = Effect.fn("OpenAIChat.lowerAssistantMessage")(func
   message: OpenAIChatRequestMessage,
 ) {
   const content: TextPart[] = []
+  const reasoning: ReasoningPart[] = []
   const toolCalls: OpenAIChatAssistantToolCall[] = []
   for (const part of message.content) {
-    if (!ProviderShared.supportsContent(part, ["text", "tool-call"]))
-      return yield* ProviderShared.unsupportedContent("OpenAI Chat", "assistant", ["text", "tool-call"])
+    if (!ProviderShared.supportsContent(part, ["text", "reasoning", "tool-call"]))
+      return yield* ProviderShared.unsupportedContent("OpenAI Chat", "assistant", ["text", "reasoning", "tool-call"])
     if (part.type === "text") {
       content.push(part)
+      continue
+    }
+    if (part.type === "reasoning") {
+      reasoning.push(part)
       continue
     }
     if (part.type === "tool-call") {
@@ -216,11 +222,14 @@ const lowerAssistantMessage = Effect.fn("OpenAIChat.lowerAssistantMessage")(func
       continue
     }
   }
+  const reasoningContent = reasoning.length
+    ? ProviderShared.joinText(reasoning)
+    : openAICompatibleReasoningContent(message.native?.openaiCompatible)
   return {
     role: "assistant" as const,
     content: content.length === 0 ? null : ProviderShared.joinText(content),
     tool_calls: toolCalls.length === 0 ? undefined : toolCalls,
-    reasoning_content: openAICompatibleReasoningContent(message.native?.openaiCompatible),
+    reasoning_content: reasoningContent,
   }
 })
 

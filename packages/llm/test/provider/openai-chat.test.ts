@@ -214,17 +214,27 @@ describe("OpenAI Chat route", () => {
     }),
   )
 
-  it.effect("rejects unsupported assistant reasoning content", () =>
+  it.effect("serializes assistant reasoning content for compatible chat models", () =>
     Effect.gen(function* () {
-      const error = yield* LLMClient.prepare(
+      const prepared = yield* LLMClient.prepare<OpenAIChat.OpenAIChatBody>(
         LLM.request({
           id: "req_reasoning",
           model,
-          messages: [Message.assistant({ type: "reasoning", text: "hidden" })],
+          messages: [
+            Message.user("continue"),
+            Message.assistant([
+              { type: "reasoning", text: "hidden" },
+              { type: "text", text: "visible" },
+            ]),
+          ],
         }),
-      ).pipe(Effect.flip)
+      )
 
-      expect(error.message).toContain("OpenAI Chat assistant messages only support text and tool-call content for now")
+      expect(prepared.body.messages.at(-1)).toEqual({
+        role: "assistant",
+        content: "visible",
+        reasoning_content: "hidden",
+      })
     }),
   )
 
