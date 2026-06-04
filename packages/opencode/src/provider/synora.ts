@@ -41,6 +41,7 @@ type Contract = {
   readonly attachment?: boolean
   readonly inputModalities?: Model["capabilities"]["input"]
   readonly interleaved?: Model["capabilities"]["interleaved"]
+  readonly variants?: NonNullable<Model["variants"]>
   readonly releaseDate: string
   readonly sources: {
     readonly transport: Provenance
@@ -88,6 +89,28 @@ const DOC_BEDROCK_MODEL = { kind: "official-doc", detail: "aws-bedrock-anthropic
 const DEFAULT_FOUNDRY = { kind: "deployment-default", detail: "nps-foundry default base url" } satisfies Provenance
 const DEFAULT_BEDROCK = { kind: "deployment-default", detail: "eu-central-1 default region" } satisfies Provenance
 
+const gptReasoningVariants = {
+  none: { reasoningEffort: "none", reasoningSummary: "auto" },
+  minimal: { reasoningEffort: "minimal", reasoningSummary: "auto" },
+  low: { reasoningEffort: "low", reasoningSummary: "auto" },
+  medium: { reasoningEffort: "medium", reasoningSummary: "auto" },
+  high: { reasoningEffort: "high", reasoningSummary: "auto" },
+  xhigh: { reasoningEffort: "xhigh", reasoningSummary: "auto" },
+}
+
+const deepseekThinkingVariants = {
+  disabled: { thinking: { type: "disabled" } },
+  high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+  max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+}
+
+const claudeAdaptiveVariants = {
+  low: { bedrock: { thinking: { type: "adaptive" }, output_config: { effort: "low" } } },
+  medium: { bedrock: { thinking: { type: "adaptive" }, output_config: { effort: "medium" } } },
+  high: { bedrock: { thinking: { type: "adaptive" }, output_config: { effort: "high" } } },
+  max: { bedrock: { thinking: { type: "adaptive" }, output_config: { effort: "max" } } },
+}
+
 const CONTRACTS = {
   "gpt-5.4": {
     id: "gpt-5.4",
@@ -124,6 +147,7 @@ const CONTRACTS = {
     output: 128_000,
     attachment: true,
     inputModalities: textImagePdfInput,
+    variants: gptReasoningVariants,
     releaseDate: "2026-03-05",
     sources: {
       transport: DOC_RESPONSE_API,
@@ -155,6 +179,7 @@ const CONTRACTS = {
     output: 128_000,
     attachment: true,
     inputModalities: textImagePdfInput,
+    variants: gptReasoningVariants,
     releaseDate: "2026-02-24",
     sources: {
       transport: DOC_RESPONSE_API,
@@ -184,6 +209,7 @@ const CONTRACTS = {
     output: 384_000,
     temperature: true,
     interleaved: { field: "reasoning_content" },
+    variants: deepseekThinkingVariants,
     releaseDate: "2026-04-24",
     sources: {
       transport: DOC_CHAT_API,
@@ -213,6 +239,7 @@ const CONTRACTS = {
     output: 384_000,
     temperature: true,
     interleaved: { field: "reasoning_content" },
+    variants: deepseekThinkingVariants,
     releaseDate: "2026-04-24",
     sources: {
       transport: DOC_CHAT_API,
@@ -244,6 +271,9 @@ const CONTRACTS = {
     attachment: true,
     inputModalities: textImageVideoInput,
     interleaved: { field: "reasoning_content" },
+    variants: {
+      disabled: { thinking: { type: "disabled" } },
+    },
     releaseDate: "2026-04-20",
     sources: {
       transport: DOC_CHAT_API,
@@ -287,6 +317,7 @@ const CONTRACTS = {
     temperature: true,
     attachment: true,
     inputModalities: textImagePdfInput,
+    variants: claudeAdaptiveVariants,
     releaseDate: "2026-02-05",
     sources: {
       transport: DOC_BEDROCK_CONVERSE,
@@ -330,6 +361,11 @@ const CONTRACTS = {
     temperature: true,
     attachment: true,
     inputModalities: textImagePdfInput,
+    variants: {
+      low: claudeAdaptiveVariants.low,
+      medium: claudeAdaptiveVariants.medium,
+      high: claudeAdaptiveVariants.high,
+    },
     releaseDate: "2026-02-17",
     sources: {
       transport: DOC_BEDROCK_CONVERSE,
@@ -374,7 +410,7 @@ function contractModel(input: Contract, baseURL: string, region: string): Model 
       interleaved: input.interleaved ?? false,
     },
     release_date: input.releaseDate,
-    variants: {},
+    variants: input.variants ?? {},
   }
   return result
 }

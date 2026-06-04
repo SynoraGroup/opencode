@@ -70,6 +70,7 @@ function openAIProviderOptions(options: Record<string, unknown>): ProviderOption
     promptCacheRetention: stringValue(options.promptCacheRetention),
     reasoningEffort: stringValue(options.reasoningEffort),
     reasoningSummary: stringValue(options.reasoningSummary),
+    thinking: jsonRecordValue(options.thinking),
     include: stringArray(options.include),
     textVerbosity: stringValue(options.textVerbosity),
   })
@@ -123,6 +124,10 @@ function stringArray(value: unknown) {
 
 function jsonRecord(value: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, JSONValue] => isJSONValue(entry[1])))
+}
+
+function jsonRecordValue(value: unknown) {
+  return isRecord(value) ? jsonRecord(value) : undefined
 }
 
 function isJSONValue(value: unknown): value is JSONValue {

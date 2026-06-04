@@ -81,7 +81,10 @@ export const bodyFields = {
   stream_options: Schema.optional(Schema.Struct({ include_usage: Schema.Boolean })),
   store: Schema.optional(Schema.Boolean),
   prompt_cache_retention: Schema.optional(OpenAIOptions.OpenAIPromptCacheRetention),
-  reasoning_effort: Schema.optional(OpenAIOptions.OpenAIReasoningEffort),
+  reasoning_effort: Schema.optional(
+    Schema.Literals(["none", "minimal", "low", "medium", "high", "xhigh", "max"] as const),
+  ),
+  thinking: Schema.optional(OpenAIOptions.OpenAICompatibleThinking),
   max_tokens: Schema.optional(Schema.Number),
   temperature: Schema.optional(Schema.Number),
   top_p: Schema.optional(Schema.Number),
@@ -259,12 +262,14 @@ const lowerOptions = Effect.fn("OpenAIChat.lowerOptions")(function* (request: LL
   const store = OpenAIOptions.store(request)
   const promptCacheRetention = OpenAIOptions.promptCacheRetention(request)
   const reasoningEffort = OpenAIOptions.reasoningEffort(request)
-  if (reasoningEffort && !OpenAIOptions.isReasoningEffort(reasoningEffort))
-    return yield* invalid(`OpenAI Chat does not support reasoning effort ${reasoningEffort}`)
+  const thinking = OpenAIOptions.thinking(request)
+  if (reasoningEffort && !OpenAIOptions.isCompatibleReasoningEffort(reasoningEffort))
+    return yield* invalid(`OpenAI-compatible Chat does not support reasoning effort ${reasoningEffort}`)
   return {
     ...(store !== undefined ? { store } : {}),
     ...(promptCacheRetention ? { prompt_cache_retention: promptCacheRetention } : {}),
     ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    ...(thinking ? { thinking } : {}),
   }
 })
 

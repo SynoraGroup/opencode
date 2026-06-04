@@ -13,7 +13,7 @@ import {
   type ToolResultPart,
 } from "../schema"
 import { BedrockEventStream } from "./bedrock-event-stream"
-import { JsonObject, optionalArray, ProviderShared } from "./shared"
+import { isRecord, JsonObject, optionalArray, ProviderShared } from "./shared"
 import { BedrockAuth } from "./utils/bedrock-auth"
 import { BedrockCache } from "./utils/bedrock-cache"
 import { BedrockMedia } from "./utils/bedrock-media"
@@ -350,6 +350,11 @@ const lowerSystem = (
   system: ReadonlyArray<LLMRequest["system"][number]>,
 ): BedrockSystemBlock[] => system.flatMap((part) => textWithCache(breakpoints, part.text, part.cache))
 
+const additionalModelRequestFields = (request: LLMRequest) =>
+  isRecord(request.providerOptions?.bedrock) && Object.keys(request.providerOptions.bedrock).length > 0
+    ? request.providerOptions.bedrock
+    : undefined
+
 const fromRequest = Effect.fn("BedrockConverse.fromRequest")(function* (request: LLMRequest) {
   const toolChoice = request.toolChoice ? yield* lowerToolChoice(request.toolChoice) : undefined
   const generation = request.generation
@@ -384,6 +389,7 @@ const fromRequest = Effect.fn("BedrockConverse.fromRequest")(function* (request:
             stopSequences: generation?.stop,
           },
     toolConfig,
+    additionalModelRequestFields: additionalModelRequestFields(request),
   }
 })
 

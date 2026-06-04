@@ -31,8 +31,12 @@ export const OpenAIReasoningEffort = Schema.Literals(OpenAIReasoningEfforts)
 export const OpenAITextVerbosity = TextVerbosity
 export const OpenAIResponseIncludable = Schema.Literals(OpenAIResponseIncludables)
 export const OpenAIPromptCacheRetention = Schema.Literals(["in_memory", "24h"] as const)
+export const OpenAICompatibleThinking = Schema.Struct({
+  type: Schema.Literals(["enabled", "disabled"] as const),
+})
+export type OpenAICompatibleThinking = Schema.Schema.Type<typeof OpenAICompatibleThinking>
 
-const isAnyReasoningEffort = (effort: unknown): effort is ReasoningEffort =>
+export const isCompatibleReasoningEffort = (effort: unknown): effort is ReasoningEffort =>
   typeof effort === "string" && REASONING_EFFORTS.has(effort)
 
 export const isReasoningEffort = (effort: unknown): effort is OpenAIReasoningEffort =>
@@ -53,7 +57,12 @@ export const store = (request: LLMRequest): boolean | undefined => {
 
 export const reasoningEffort = (request: LLMRequest): ReasoningEffort | undefined => {
   const value = options(request)?.reasoningEffort
-  return isAnyReasoningEffort(value) ? value : undefined
+  return isCompatibleReasoningEffort(value) ? value : undefined
+}
+
+export const thinking = (request: LLMRequest): OpenAICompatibleThinking | undefined => {
+  const value = options(request)?.thinking
+  return Schema.is(OpenAICompatibleThinking)(value) ? value : undefined
 }
 
 export const reasoningSummary = (request: LLMRequest): "auto" | undefined =>

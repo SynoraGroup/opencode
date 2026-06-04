@@ -82,6 +82,28 @@ describe("Bedrock Converse route", () => {
     }),
   )
 
+  it.effect("passes Bedrock additional model request fields", () =>
+    Effect.gen(function* () {
+      const prepared = yield* LLMClient.prepare(
+        LLM.updateRequest(baseRequest, {
+          providerOptions: {
+            bedrock: {
+              thinking: { type: "adaptive" },
+              output_config: { effort: "high" },
+            },
+          },
+        }),
+      )
+
+      expect(prepared.body).toMatchObject({
+        additionalModelRequestFields: {
+          thinking: { type: "adaptive" },
+          output_config: { effort: "high" },
+        },
+      })
+    }),
+  )
+
   it.effect("prepares tool config with toolSpec and toolChoice", () =>
     Effect.gen(function* () {
       const prepared = yield* LLMClient.prepare(

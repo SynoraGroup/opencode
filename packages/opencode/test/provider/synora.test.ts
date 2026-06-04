@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { SynoraProvider } from "../../src/provider/synora"
+import { ProviderTransform } from "../../src/provider/transform"
 import { ProviderID } from "../../src/provider/schema"
 
 const foundryID = ProviderID.make("synora-foundry")
@@ -139,12 +140,48 @@ describe("Synora provider contract", () => {
     ).toEqual({})
   })
 
-  test("keeps Synora variants empty until a documented control is encoded explicitly", () => {
+  test("publishes documented reasoning and thinking variants", () => {
     const providers = SynoraProvider.providers({ envs: {}, auths: {} })
 
-    expect(providers[foundryID].models["gpt-5.4"].variants).toEqual({})
-    expect(providers[foundryID].models["DeepSeek-V4-Pro"].variants).toEqual({})
-    expect(providers[bedrockID].models["claude-opus-4.6"].variants).toEqual({})
+    expect(Object.keys(providers[foundryID].models["gpt-5.4"].variants ?? {})).toEqual([
+      "none",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+    ])
+    expect(providers[foundryID].models["gpt-5.4"].variants?.xhigh).toEqual({
+      reasoningEffort: "xhigh",
+      reasoningSummary: "auto",
+    })
+
+    expect(providers[foundryID].models["DeepSeek-V4-Pro"].variants).toEqual({
+      disabled: { thinking: { type: "disabled" } },
+      high: { thinking: { type: "enabled" }, reasoningEffort: "high" },
+      max: { thinking: { type: "enabled" }, reasoningEffort: "max" },
+    })
+    expect(providers[foundryID].models["Kimi-K2.6"].variants).toEqual({
+      disabled: { thinking: { type: "disabled" } },
+    })
+
+    expect(providers[bedrockID].models["claude-opus-4.6"].variants?.max).toEqual({
+      bedrock: { thinking: { type: "adaptive" }, output_config: { effort: "max" } },
+    })
+    expect(providers[bedrockID].models["claude-sonnet-4.6"].variants).not.toHaveProperty("max")
+
+    expect(
+      ProviderTransform.providerOptions(
+        providers[foundryID].models["DeepSeek-V4-Pro"],
+        providers[foundryID].models["DeepSeek-V4-Pro"].variants?.max ?? {},
+      ),
+    ).toEqual({ openai: { thinking: { type: "enabled" }, reasoningEffort: "max" } })
+    expect(
+      ProviderTransform.providerOptions(
+        providers[bedrockID].models["claude-opus-4.6"],
+        providers[bedrockID].models["claude-opus-4.6"].variants?.high ?? {},
+      ),
+    ).toEqual({ bedrock: { thinking: { type: "adaptive" }, output_config: { effort: "high" } } })
   })
 
   test("tracks per-contract provenance for transport, auth, reasoning, cache, and limits", () => {

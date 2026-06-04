@@ -65,6 +65,24 @@ describe("OpenAI Chat route", () => {
     }),
   )
 
+  it.effect("maps OpenAI-compatible thinking controls to Chat payloads", () =>
+    Effect.gen(function* () {
+      const prepared = yield* LLMClient.prepare<OpenAIChat.OpenAIChatBody>(
+        LLM.request({
+          model: Azure.configure({
+            baseURL: "https://opencode-test.services.ai.azure.com/openai/v1/",
+            apiKey: "azure-key",
+          }).chat("DeepSeek-V4-Pro"),
+          prompt: "think",
+          providerOptions: { openai: { reasoningEffort: "max", thinking: { type: "enabled" } } },
+        }),
+      )
+
+      expect(prepared.body.reasoning_effort).toBe("max")
+      expect(prepared.body.thinking).toEqual({ type: "enabled" })
+    }),
+  )
+
   it.effect("lowers prompt_cache_retention on Chat payloads when configured", () =>
     Effect.gen(function* () {
       const prepared = yield* LLMClient.prepare<OpenAIChat.OpenAIChatBody>(

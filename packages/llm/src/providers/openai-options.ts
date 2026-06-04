@@ -11,6 +11,7 @@ export interface OpenAIOptionsInput {
   readonly promptCacheRetention?: "in_memory" | "24h"
   readonly reasoningEffort?: ReasoningEffort
   readonly reasoningSummary?: "auto"
+  readonly thinking?: { readonly type?: "enabled" | "disabled" }
   // OpenAI Responses `include` wire field. Mirrors the official SDK's
   // `ResponseIncludable[]` union exactly so AI SDK callers and direct
   // native-SDK callers share one shape and no translation is required.
@@ -33,6 +34,7 @@ const openAIProviderOptions = (options: OpenAIOptionsInput | undefined): Provide
       promptCacheRetention: options?.promptCacheRetention,
       reasoningEffort: options?.reasoningEffort,
       reasoningSummary: options?.reasoningSummary,
+      thinking: options?.thinking,
       include: options?.include,
       textVerbosity: options?.textVerbosity,
     }),
