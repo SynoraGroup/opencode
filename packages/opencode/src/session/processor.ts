@@ -29,6 +29,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import * as DateTime from "effect/DateTime"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Usage, type LLMEvent } from "@opencode-ai/llm"
+import { ProviderError } from "@/provider/error"
 
 const DOOM_LOOP_THRESHOLD = 3
 const LARGE_ZERO_CACHE_INPUT_MIN = 40_000
@@ -600,7 +601,9 @@ export const layer = Layer.effect(
           }
 
           case "provider-error":
-            throw new Error(value.message)
+            throw value.retryable === true
+              ? new ProviderError.ResponseStreamError(value.message)
+              : new Error(value.message)
 
           case "step-start":
             if (!ctx.snapshot) ctx.snapshot = yield* snapshot.track()

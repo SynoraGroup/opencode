@@ -1210,7 +1210,9 @@ describe("OpenAI Responses route", () => {
       // sometimes-generic provider message. The bare message alone meant
       // production errors like rate limits were indistinguishable from
       // unrelated stream failures.
-      expect(response.events).toEqual([{ type: "provider-error", message: "rate_limit_exceeded: Slow down" }])
+      expect(response.events).toEqual([
+        { type: "provider-error", message: "rate_limit_exceeded: Slow down", retryable: true },
+      ])
     }),
   )
 
@@ -1220,7 +1222,7 @@ describe("OpenAI Responses route", () => {
         Effect.provide(fixedResponse(sseEvents({ type: "error", code: "internal_error" }))),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "internal_error" }])
+      expect(response.events).toEqual([{ type: "provider-error", message: "internal_error", retryable: true }])
     }),
   )
 
@@ -1230,7 +1232,7 @@ describe("OpenAI Responses route", () => {
         Effect.provide(fixedResponse(sseEvents({ type: "error", code: "internal_error", message: "" }))),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "internal_error" }])
+      expect(response.events).toEqual([{ type: "provider-error", message: "internal_error", retryable: true }])
     }),
   )
 
@@ -1254,7 +1256,9 @@ describe("OpenAI Responses route", () => {
         ),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "server_error: Upstream model unavailable" }])
+      expect(response.events).toEqual([
+        { type: "provider-error", message: "server_error: Upstream model unavailable", retryable: true },
+      ])
     }),
   )
 
@@ -1271,7 +1275,7 @@ describe("OpenAI Responses route", () => {
         ),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "invalid_prompt" }])
+      expect(response.events).toEqual([{ type: "provider-error", message: "invalid_prompt", retryable: false }])
     }),
   )
 
@@ -1293,7 +1297,9 @@ describe("OpenAI Responses route", () => {
         ),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "context_length_exceeded: prompt too long" }])
+      expect(response.events).toEqual([
+        { type: "provider-error", message: "context_length_exceeded: prompt too long", retryable: false },
+      ])
     }),
   )
 
@@ -1303,7 +1309,9 @@ describe("OpenAI Responses route", () => {
         Effect.provide(fixedResponse(sseEvents({ type: "error" }))),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "OpenAI Responses stream error" }])
+      expect(response.events).toEqual([
+        { type: "provider-error", message: "OpenAI Responses stream error", retryable: true },
+      ])
     }),
   )
 
@@ -1313,7 +1321,9 @@ describe("OpenAI Responses route", () => {
         Effect.provide(fixedResponse(sseEvents({ type: "response.failed", response: { id: "resp_failed_3" } }))),
       )
 
-      expect(response.events).toEqual([{ type: "provider-error", message: "OpenAI Responses response failed" }])
+      expect(response.events).toEqual([
+        { type: "provider-error", message: "OpenAI Responses response failed", retryable: true },
+      ])
     }),
   )
 

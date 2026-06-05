@@ -851,14 +851,48 @@ const providerErrorMessage = (event: OpenAIResponsesEvent, fallback: string): st
   return message || code || fallback
 }
 
+const providerErrorRetryable = (event: OpenAIResponsesEvent, fallbackRetryable: boolean) => {
+  const code = event.code || event.response?.error?.code || undefined
+  if (!code) return fallbackRetryable
+  const lower = code.toLowerCase()
+  if (
+    lower.includes("rate_limit") ||
+    lower.includes("server") ||
+    lower.includes("internal") ||
+    lower.includes("overload") ||
+    lower.includes("timeout") ||
+    lower.includes("unavailable")
+  )
+    return true
+  if (
+    lower.includes("context_length") ||
+    lower.includes("invalid") ||
+    lower.includes("auth") ||
+    lower.includes("quota") ||
+    lower.includes("policy")
+  )
+    return false
+  return fallbackRetryable
+}
+
 const onResponseFailed = (state: ParserState, event: OpenAIResponsesEvent): StepResult => [
   state,
-  [LLMEvent.providerError({ message: providerErrorMessage(event, "OpenAI Responses response failed") })],
+  [
+    LLMEvent.providerError({
+      message: providerErrorMessage(event, "OpenAI Responses response failed"),
+      retryable: providerErrorRetryable(event, true),
+    }),
+  ],
 ]
 
 const onError = (state: ParserState, event: OpenAIResponsesEvent): StepResult => [
   state,
-  [LLMEvent.providerError({ message: providerErrorMessage(event, "OpenAI Responses stream error") })],
+  [
+    LLMEvent.providerError({
+      message: providerErrorMessage(event, "OpenAI Responses stream error"),
+      retryable: providerErrorRetryable(event, true),
+    }),
+  ],
 ]
 
 const step = (state: ParserState, event: OpenAIResponsesEvent) => {
