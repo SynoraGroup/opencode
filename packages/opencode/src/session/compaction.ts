@@ -20,6 +20,7 @@ import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionEvent } from "@opencode-ai/core/session-event"
+import { SessionRuntime } from "./runtime"
 
 const log = Log.create({ service: "session.compaction" })
 
@@ -389,6 +390,7 @@ export const layer = Layer.effect(
       const prior = completedCompactions(history)
       const hidden = new Set(prior.flatMap((item) => [item.userIndex, item.assistantIndex]))
       const previousSummary = prior.at(-1)?.summary
+      const tokensBefore = yield* estimate({ messages: history, model })
       const selected = yield* select({
         messages: history.filter((_, index) => !hidden.has(index)),
         cfg,
@@ -560,14 +562,23 @@ export const layer = Layer.effect(
 
       if (processor.message.error) return "stop"
       if (result === "continue") {
+        const allMessages = yield* session.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)
         const summary = summaryText(
-          (yield* session.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)).find(
-            (item) => item.info.id === msg.id,
-          ) ?? {
+          allMessages.find((item) => item.info.id === msg.id) ?? {
             info: msg,
             parts: [],
           },
         )
+        yield* SessionRuntime.createCheckpoint({
+          sessionID: input.sessionID,
+          parentMessageID: input.parentID,
+          summaryMessageID: msg.id,
+          tailStartID: selected.tail_start_id,
+          model,
+          messages: MessageV2.filterCompacted(allMessages),
+          tokensBefore,
+          previousSummary,
+        })
         if (flags.experimentalEventSystem) {
           yield* events.publish(SessionEvent.Compaction.Ended, {
             sessionID: input.sessionID,

@@ -17,6 +17,7 @@ import type { SessionID } from "./schema"
 import { SessionRetry } from "./retry"
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
+import { SessionRuntime } from "./runtime"
 import type { Provider } from "@/provider/provider"
 import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
@@ -601,6 +602,17 @@ export const layer = Layer.effect(
           }
 
           case "provider-error":
+            yield* SessionRuntime.appendLedger({
+              sessionID: ctx.sessionID,
+              type: "stream_error",
+              messageID: ctx.assistantMessage.id,
+              providerID: ctx.model.providerID,
+              modelID: ctx.model.id,
+              data: {
+                message: value.message,
+                retryable: value.retryable === true,
+              },
+            })
             throw value.retryable === true
               ? new ProviderError.ResponseStreamError(value.message)
               : new Error(value.message)
@@ -665,6 +677,42 @@ export const layer = Layer.effect(
               requestID: `${ctx.assistantMessage.id}:${stepFinishID}`,
               parts: MessageV2.parts(ctx.assistantMessage.id),
             })
+            yield* SessionRuntime.appendLedger({
+              sessionID: ctx.sessionID,
+              type: "usage_snapshot",
+              messageID: ctx.assistantMessage.id,
+              providerID: ctx.model.providerID,
+              modelID: ctx.model.id,
+              data: {
+                finish: value.reason,
+                cost: usage.cost,
+                tokens: usage.tokens,
+                ledger: ledgerEntry,
+              },
+            })
+            yield* SessionRuntime.appendLedger({
+              sessionID: ctx.sessionID,
+              type: "cache_snapshot",
+              messageID: ctx.assistantMessage.id,
+              providerID: ctx.model.providerID,
+              modelID: ctx.model.id,
+              data: {
+                input: usage.tokens.input,
+                cache_read: usage.tokens.cache.read,
+                cache_write: usage.tokens.cache.write,
+                key_used: ledgerEntry.cache.keyUsed,
+              },
+            })
+            if (ledgerEntry.reasoning.mode !== "none") {
+              yield* SessionRuntime.appendLedger({
+                sessionID: ctx.sessionID,
+                type: "reasoning_state",
+                messageID: ctx.assistantMessage.id,
+                providerID: ctx.model.providerID,
+                modelID: ctx.model.id,
+                data: ledgerEntry.reasoning,
+              })
+            }
             yield* session.updatePart({
               id: stepFinishID,
               reason: value.reason,

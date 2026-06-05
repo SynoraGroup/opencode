@@ -128,6 +128,55 @@ export const SessionMessageTable = sqliteTable(
   ],
 )
 
+export const SessionRuntimeLedgerTable = sqliteTable(
+  "session_runtime_ledger",
+  {
+    id: text().primaryKey(),
+    session_id: text()
+      .$type<SessionID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    type: text().notNull(),
+    message_id: text().$type<MessageID>(),
+    provider_id: text(),
+    model_id: text(),
+    checkpoint_id: text(),
+    ...Timestamps,
+    data: text({ mode: "json" }).notNull().$type<Record<string, unknown>>(),
+  },
+  (table) => [
+    index("session_runtime_ledger_session_time_idx").on(table.session_id, table.time_created, table.id),
+    index("session_runtime_ledger_checkpoint_idx").on(table.checkpoint_id),
+  ],
+)
+
+export const SessionRuntimeCheckpointTable = sqliteTable(
+  "session_runtime_checkpoint",
+  {
+    id: text().primaryKey(),
+    session_id: text()
+      .$type<SessionID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    parent_message_id: text().$type<MessageID>().notNull(),
+    summary_message_id: text().$type<MessageID>().notNull(),
+    tail_start_id: text().$type<MessageID>(),
+    provider_id: text().notNull(),
+    model_id: text().notNull(),
+    variant: text(),
+    tokens_before: integer().notNull().default(0),
+    tokens_after: integer().notNull().default(0),
+    cache_prefix_tokens: integer().notNull().default(0),
+    cache_prefix_hash: text(),
+    ...Timestamps,
+    data: text({ mode: "json" }).notNull().$type<Record<string, unknown>>(),
+  },
+  (table) => [
+    index("session_runtime_checkpoint_session_time_idx").on(table.session_id, table.time_created, table.id),
+    index("session_runtime_checkpoint_summary_idx").on(table.summary_message_id),
+  ],
+)
+
 export const PermissionTable = sqliteTable("permission", {
   project_id: text()
     .primaryKey()

@@ -19,6 +19,22 @@ function tokenTotal(tokens: {
   return tokens.input + tokens.output + tokens.reasoning + tokens.cache.read + tokens.cache.write
 }
 
+function cacheHealth(messages: AssistantMessage[]) {
+  const eligible = messages.filter((item) => item.providerID === "synora-foundry" || item.providerID === "synora-bedrock")
+  if (!eligible.length) return "Cache unknown"
+  const large = eligible.filter((item) => item.tokens.input >= 50_000)
+  if (!large.length) return "Cache warming"
+  const cached = large.reduce((acc, item) => acc + item.tokens.cache.read, 0)
+  const input = large.reduce((acc, item) => acc + item.tokens.input, 0)
+  const consecutiveMisses = large
+    .toReversed()
+    .findIndex((item) => item.tokens.cache.read > 0 || item.tokens.cache.write > 0)
+  const misses = consecutiveMisses === -1 ? large.length : consecutiveMisses
+  if (input > 0 && cached / input < 0.1 && misses >= 3) return "Cache degraded"
+  if (cached > 0) return "Cache healthy"
+  return "Cache pending"
+}
+
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
@@ -27,6 +43,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
   const state = createMemo(() => {
     const last = msg().findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
+    const assistants = msg().filter((item): item is AssistantMessage => item.role === "assistant")
     const current = session()
     const sessionTokens = current?.tokens ? tokenTotal(current.tokens) : 0
     if (!last) {
@@ -34,6 +51,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         requestTokens: 0,
         percent: null,
         sessionTokens,
+        cache: cacheHealth(assistants),
       }
     }
 
@@ -43,6 +61,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       requestTokens: tokens,
       percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : null,
       sessionTokens,
+      cache: cacheHealth(assistants),
     }
   })
 
@@ -54,6 +73,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <text fg={theme().textMuted}>Req {state().requestTokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>Req {state().percent ?? 0}% used</text>
       <text fg={theme().textMuted}>Session {state().sessionTokens.toLocaleString()} tokens</text>
+      <text fg={theme().textMuted}>{state().cache}</text>
       <text fg={theme().textMuted}>{money.format(cost())} spent</text>
     </box>
   )

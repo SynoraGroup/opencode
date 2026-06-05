@@ -12,6 +12,7 @@ import { type Tool as AITool, tool, jsonSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { SessionGovernor } from "./governor"
+import { SessionRuntime } from "./runtime"
 import { Bus } from "../bus"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
@@ -1316,6 +1317,16 @@ export const layer = Layer.effect(
             }).pipe(Effect.ignore, Effect.forkIn(scope))
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
+          const runtimeContext = yield* SessionRuntime.reconstructForRequest({ sessionID, model, messages: msgs })
+          msgs = runtimeContext.messages
+          yield* slog.info("runtime context", {
+            checkpointID: runtimeContext.checkpoint?.id,
+            tokenEstimate: runtimeContext.tokenEstimate,
+            cachePrefixTokens: runtimeContext.cachePrefixTokens,
+            cacheHealth: runtimeContext.cacheHealth,
+            restartSafe: runtimeContext.restartSafe,
+            warnings: runtimeContext.warnings,
+          })
           const task = tasks.pop()
 
           if (task?.type === "subtask") {
