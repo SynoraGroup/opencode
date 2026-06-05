@@ -92,6 +92,15 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
+function tokenTotal(tokens: {
+  input: number
+  output: number
+  reasoning: number
+  cache: { read: number; write: number }
+}) {
+  return tokens.input + tokens.output + tokens.reasoning + tokens.cache.read + tokens.cache.write
+}
+
 const DRAFT_RETENTION_MIN_CHARS = 20
 
 function randomIndex(count: number) {
@@ -336,17 +345,25 @@ export function Prompt(props: PromptProps) {
     const session = sync.session.get(props.sessionID)
     const msg = sync.data.message[props.sessionID] ?? []
     const last = msg.findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
-    if (!last) return
+    const sessionTokens = session?.tokens ? tokenTotal(session.tokens) : 0
+    const cost = session?.cost ?? 0
 
-    const tokens =
-      last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
-    if (tokens <= 0) return
+    if (!last) {
+      if (sessionTokens <= 0) return
+      return {
+        session: `Session ${Locale.number(sessionTokens)}`,
+        cost: session ? money.format(cost) : undefined,
+      }
+    }
+
+    const tokens = tokenTotal(last.tokens)
+    if (tokens <= 0 && sessionTokens <= 0) return
 
     const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
     const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
-    const cost = session?.cost ?? 0
     return {
-      context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
+      request: pct ? `Req ${Locale.number(tokens)} (${pct})` : `Req ${Locale.number(tokens)}`,
+      session: sessionTokens > 0 ? `Session ${Locale.number(sessionTokens)}` : undefined,
       cost: session ? money.format(cost) : undefined,
     }
   })
@@ -1759,7 +1776,7 @@ export function Prompt(props: PromptProps) {
                     <Match when={usage()}>
                       {(item) => (
                         <text fg={theme.textMuted} wrapMode="none">
-                          {[item().context, item().cost].filter(Boolean).join(" · ")}
+                          {[item().request, item().session, item().cost].filter(Boolean).join(" · ")}
                         </text>
                       )}
                     </Match>

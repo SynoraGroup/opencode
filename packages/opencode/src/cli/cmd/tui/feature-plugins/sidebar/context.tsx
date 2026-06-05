@@ -10,6 +10,15 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
+function tokenTotal(tokens: {
+  input: number
+  output: number
+  reasoning: number
+  cache: { read: number; write: number }
+}) {
+  return tokens.input + tokens.output + tokens.reasoning + tokens.cache.read + tokens.cache.write
+}
+
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
@@ -18,19 +27,22 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
   const state = createMemo(() => {
     const last = msg().findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
+    const current = session()
+    const sessionTokens = current?.tokens ? tokenTotal(current.tokens) : 0
     if (!last) {
       return {
-        tokens: 0,
+        requestTokens: 0,
         percent: null,
+        sessionTokens,
       }
     }
 
-    const tokens =
-      last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
+    const tokens = tokenTotal(last.tokens)
     const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
     return {
-      tokens,
+      requestTokens: tokens,
       percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : null,
+      sessionTokens,
     }
   })
 
@@ -39,8 +51,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <text fg={theme().text}>
         <b>Context</b>
       </text>
-      <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
-      <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
+      <text fg={theme().textMuted}>Req {state().requestTokens.toLocaleString()} tokens</text>
+      <text fg={theme().textMuted}>Req {state().percent ?? 0}% used</text>
+      <text fg={theme().textMuted}>Session {state().sessionTokens.toLocaleString()} tokens</text>
       <text fg={theme().textMuted}>{money.format(cost())} spent</text>
     </box>
   )
